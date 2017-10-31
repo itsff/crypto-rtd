@@ -8,17 +8,14 @@ to run on Windows 7 machines.
 
 ## Installation
 1. Clone the repository and go to its folder.
-2. Compile the code using Visual Studio or MSBuild
+2. Compile the code using Visual Studio, MSBuild or via this handy script file:
 
-   `%SystemRoot%\Microsoft.NET\Framework\v4.0.30319\MSBuild.exe /p:Configuration=Release src\crypto-rtd.sln`
-
-   Note: If you are compiling from command line, you will need to restore NuGet packages.
-   Please [download NuGet](https://www.nuget.org/downloads) and [follow documentation](https://docs.microsoft.com/en-us/nuget/).
+   `build.cmd`
 
 
-3. Register the COM server by running the following command in admin command prompt:
+3. Register the COM server by running the following script in admin command prompt:
    
-   `%SystemRoot%\Microsoft.NET\Framework\v4.0.30319\RegAsm.exe src\CryptoRtd\bin\Release\CryptoRtd.dll /codebase`
+   `register.cmd`
 
 ## Usage
 
