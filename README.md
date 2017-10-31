@@ -41,3 +41,5 @@ You can use the following fields:
 * LAST_SIZE - last traded size
 * LAST_SIDE - last trades side (buy or sell)
 
+![Excel screenshot](doc/crypto-rtd-excel.png)
+
