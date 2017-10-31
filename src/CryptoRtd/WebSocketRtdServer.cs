@@ -12,7 +12,12 @@ namespace CryptoRtd
 {
     [
         Guid("982325F9-B1F3-4D12-9618-76A1C8B950B2"),
-        ProgId("CTC.MD")
+        
+        //
+        // This is the string that names RTD server.
+        // Users will use it from Excel: =RTD("crypto",, ....)
+        //
+        ProgId("crypto")
     ]
     public class WebSocketRtdServer : IRtdServer
     {
