@@ -21,7 +21,7 @@ namespace TestApp
 
         void Run ()
         {
-            _rtd = new WebSocketRtdServer();
+            _rtd = new CryptoRtdServer();
             _rtd.ServerStart(this);
 
             Sub("BTC-USD", "BID");

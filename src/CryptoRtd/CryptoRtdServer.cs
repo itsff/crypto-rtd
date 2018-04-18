@@ -1,12 +1,8 @@
-﻿using Newtonsoft.Json.Linq;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Text;
 using System.Windows.Threading;
-using WebSocket4Net;
 
 namespace CryptoRtd
 {
@@ -19,7 +15,7 @@ namespace CryptoRtd
         //
         ProgId("crypto")
     ]
-    public class WebSocketRtdServer : IRtdServer
+    public class CryptoRtdServer : IRtdServer
     {
         IRtdUpdateEvent _callback;
         DispatcherTimer _timer;
@@ -27,16 +23,12 @@ namespace CryptoRtd
 
 
         // Oldie but goodie. WebSocket library that works on .NET 4.0
-        WebSocket4Net.WebSocket _socket;
+        GdaxWebSocketClient _socket;
 
-        public WebSocketRtdServer ()
+        public CryptoRtdServer ()
         {
             _subMgr = new SubscriptionManager();
-            _socket = new WebSocket4Net.WebSocket("wss://ws-feed.gdax.com");
-
-            // Hack: May not be needed
-            _socket.Security.AllowNameMismatchCertificate = true;
-            _socket.Security.AllowUnstrustedCertificate = true;
+            _socket = new GdaxWebSocketClient(new Uri("wss://ws-feed.gdax.com"));
         }
 
         //
@@ -58,15 +50,7 @@ namespace CryptoRtd
             _timer.Tick += TimerElapsed;
             _timer.Start();
 
-            _socket.Open();
-            _socket.Opened += (s, e) =>
-                              {
-                                  dynamic j = new JObject();
-                                  j.type = "subscribe";
-                                  j.channels = new JArray("heartbeat");
-                                  j.product_ids = new JArray("BTC-USD");
-                                  _socket.Send(j.ToString());
-                              };
+            _socket.Start();
             _socket.MessageReceived += OnWebSocketMessageReceived;
 
             return 1;
@@ -85,7 +69,7 @@ namespace CryptoRtd
 
             if (_socket != null)
             {
-                _socket.Dispose();
+                _socket.Disconnect();
                 _socket = null;
             }
         }
@@ -104,14 +88,13 @@ namespace CryptoRtd
             // We assume 3 strings: Origin, Instrument, Field
             if (strings.Length == 3)
             {
+                // Crappy COM-style arrays...
                 string origin = String.Empty; //strings.GetValue(0).ToString();
                 string instrument = strings.GetValue(1).ToString();
                 string field = strings.GetValue(2).ToString();
                 
                 lock (_subMgr)
                 {
-                    // Crappy COM-style arrays...
-
                     // Let's use Empty strings for now
                     _subMgr.Subscribe(
                         topicId,
@@ -121,7 +104,7 @@ namespace CryptoRtd
                         field);
                 }
 
-                SubscribeGdaxWebSocketToTicker(strings.GetValue(1).ToString().ToUpperInvariant());
+                SubscribeGdaxWebSocketToTicker(instrument.ToUpperInvariant());
                 return SubscriptionManager.UninitializedValue;
             }
 
@@ -188,12 +171,12 @@ namespace CryptoRtd
             }
         }
 
-        private void OnWebSocketMessageReceived (object sender, MessageReceivedEventArgs e)
+        private void OnWebSocketMessageReceived (object sender, WebSocketMessageEventArgs e)
         {
             // Assume the incoming string represents a JSON message.
             // Parse it, and access it via "dynamic" variable (no ["field"] and casts necessary).
 
-            dynamic jobj = JObject.Parse(e.Message);
+            dynamic jobj = e.Message;
 
             if (jobj.type == "ticker")
             {
@@ -251,14 +234,7 @@ namespace CryptoRtd
 
         private void SubscribeGdaxWebSocketToTicker (string instrument)
         {
-            dynamic j = new JObject();
-            j.type = "subscribe";
-            j.product_ids = new JArray(instrument);
-            j.channels = new JArray("ticker");
-
-            string msg = j.ToString();
-
-            _socket.Send(msg);
+            _socket.SubscribeTickers(instrument);
         }
 
         List<UpdatedValue> GetUpdatedValues ()
@@ -338,7 +314,7 @@ namespace CryptoRtd
             return updated;
         }
 
-        public void Set (string path, string value)
+        public void Set(string path, string value)
         {
             SubInfo subInfo;
             if (_subByPath.TryGetValue(path, out subInfo))
