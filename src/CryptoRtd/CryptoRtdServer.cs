@@ -256,7 +256,8 @@ namespace CryptoRtd
         {
             TopicId = topicId;
 
-            if (Decimal.TryParse(value, out Decimal dec))
+            Decimal dec;
+            if (Decimal.TryParse(value, out dec))
                 Value = dec;
             else 
                 Value = value;
