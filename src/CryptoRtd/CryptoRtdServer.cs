@@ -250,12 +250,17 @@ namespace CryptoRtd
     struct UpdatedValue
     {
         public int TopicId { get; private set; }
-        public string Value { get; private set; }
+        public object Value { get; private set; }
 
         public UpdatedValue (int topicId, string value) : this()
         {
             TopicId = topicId;
-            Value = value;
+
+            Decimal dec;
+            if (Decimal.TryParse(value, out dec))
+                Value = dec;
+            else 
+                Value = value;
         }
     }
 
