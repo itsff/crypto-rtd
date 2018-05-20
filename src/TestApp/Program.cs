@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Windows.Threading;
 using CryptoRtd;
 
@@ -24,35 +25,41 @@ namespace TestApp
             _rtd = new CryptoRtdServer();
             _rtd.ServerStart(this);
 
-            Sub("BTC-USD", "BID");
-            Sub("BTC-USD", "ASK");
-            Sub("BTC-USD", "LAST_PRICE");
-            Sub("BTC-USD", "LAST_SIZE");
-            Sub("BTC-USD", "LAST_SIDE");
-            
-            Sub("ETH-USD", "BID");
-            Sub("ETH-USD", "ASK");
-            Sub("ETH-USD", "LAST_PRICE");
-            Sub("ETH-USD", "LAST_SIZE");
-            Sub("ETH-USD", "LAST_SIDE");
+            foreach(string field in RtdFields.ALL_FIELDS) 
+                Sub(CryptoRtdServer.BINANCE, "ETHUSDT", field);
+
+            Sub(CryptoRtdServer.GDAX, "BTC-USD", "BID");
+            Sub(CryptoRtdServer.GDAX, "BTC-USD", "ASK");
+            Sub(CryptoRtdServer.GDAX, "BTC-USD", "LAST_PRICE");
+            Sub(CryptoRtdServer.GDAX, "BTC-USD", "LAST_SIZE");
+            Sub(CryptoRtdServer.GDAX, "BTC-USD", "LAST_SIDE");
+
+            //Sub(CryptoRtdServer.GDAX, "ETH-USD", "BID");
+            //Sub(CryptoRtdServer.GDAX, "ETH-USD", "ASK");
+            //Sub(CryptoRtdServer.GDAX, "ETH-USD", "LAST_PRICE");
+            //Sub(CryptoRtdServer.GDAX, "ETH-USD", "LAST_SIZE");
+            //Sub(CryptoRtdServer.GDAX, "ETH-USD", "LAST_SIDE");
 
             // Start up a Windows message pump and spin forever.
             Dispatcher.Run();
         }
 
         int _topic;
-        void Sub (string instrument, string field)
+        Dictionary<int, Array> topics = new Dictionary<int, Array>();
+
+        void Sub (string origin, string instrument, string field)
         {
-            Console.WriteLine("Subscribing: topic={0}, instr={1}, field={2}", _topic, instrument, field);
-            
+            Console.WriteLine("Subscribing: topic={0}, instr={1}, field={2}, origin={3}", _topic, instrument, field, origin);
+
             var a = new[]
                     {
-                        "GDAX",
+                        origin,
                         instrument,
                         field
                     };
 
             Array crappyArray = a;
+            topics.Add(_topic, crappyArray);
 
             bool newValues = false;
             _rtd.ConnectData(_topic++, ref crappyArray, ref newValues);
@@ -68,7 +75,11 @@ namespace TestApp
 
             for (int i = 0; i < topicCount; ++i)
             {
-                Console.WriteLine("{0}\t{1}", values.GetValue(0, i), values.GetValue(1, i));
+                int topic = (int)values.GetValue(0, i);
+                Array arr;
+                topics.TryGetValue(topic, out arr);
+
+                Console.WriteLine("{0}|{1}|{2}\t{3}", arr.GetValue(0), arr.GetValue(1), arr.GetValue(2), values.GetValue(1, i));
             }
         }
 
