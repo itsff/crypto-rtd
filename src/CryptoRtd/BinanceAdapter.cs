@@ -334,7 +334,7 @@ namespace CryptoRtd
             var instrument = stream.Symbol;
             CacheResult(BINANCE, instrument, RtdFields.TRADE_ID, stream.TradeId);
             CacheResult(BINANCE, instrument, RtdFields.TRADE_PRICE, stream.Price);
-            CacheResult(BINANCE, instrument, RtdFields.TRADE_QUANTITY, stream.Price);
+            CacheResult(BINANCE, instrument, RtdFields.TRADE_QUANTITY, stream.Quantity);
             CacheResult(BINANCE, instrument, RtdFields.BUYER_ORDER_ID, stream.BuyerOrderId);
             CacheResult(BINANCE, instrument, RtdFields.SELLER_ORDER_ID, stream.SellerOrderId);
             CacheResult(BINANCE, instrument, RtdFields.BUYER_IS_MAKER, stream.BuyerIsMaker);
