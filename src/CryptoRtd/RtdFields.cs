@@ -42,6 +42,13 @@ namespace CryptoRtd
         public static readonly string[] PRICE_24H = { FIRST_ID, LAST_ID, QUOTE_VOL, VOL, ASK, ASK_SIZE, BID, BID_SIZE, LOW, HIGH, LAST, LAST_SIZE,
                                                OPEN, OPEN_TIME, CLOSE, CLOSE_TIME,VWAP, PRICE_PCT, PRICE_CHG, TRADES, SPREAD };
 
+        // Depth
+        public const string ASK_DEPTH = "ASK_DEPTH";
+        public const string ASK_DEPTH_SIZE = "ASK_DEPTH_SIZE";
+        public const string BID_DEPTH = "BID_DEPTH";
+        public const string BID_DEPTH_SIZE = "BID_DEPTH_SIZE";
+        public static readonly string[] DEPTH = { ASK_DEPTH, ASK_DEPTH_SIZE, BID_DEPTH, BID_DEPTH_SIZE };
+
         public static string[] ALL_FIELDS { get { return PRICE_FIELDS.Concat(PRICE_24H).ToArray(); } }
     }
 }

@@ -143,6 +143,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="BinanceAdapter.cs" />
     <Compile Include="RtdFields.cs" />
     <Compile Include="ExcelComInterfaces.cs" />
     <Compile Include="GlobalSuppressions.cs" />

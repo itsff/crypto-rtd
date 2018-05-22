@@ -24,8 +24,8 @@ namespace CryptoRtd
             //BinanceSocketClient.SetDefaultOptions(new BinanceSocketClientOptions()
             //{
             //    ApiCredentials = new CryptoExchange.Net.Authentication.ApiCredentials(
-            //        "6heJmUYr1M6fQGCQbKdgadG9psamqvIDYV29i6bCvK3BwmpF6MoR3AfoNYY8CNSZ", 
-            //        "PqRNXcE00aFDAczCsvBh09FyKmKSzfeIoQh81IgdwAI4EDnWS1QhfboPfgL4FPQ2"),
+            //        "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", 
+            //        "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"),
             //    LogVerbosity = CryptoExchange.Net.Logging.LogVerbosity.Debug,
             //    LogWriters = { Console.Out }
             //});
@@ -34,7 +34,8 @@ namespace CryptoRtd
             //BinanceClient.SetDefaultOptions(new BinanceClientOptions()
             //{
             //    ApiCredentials = new CryptoExchange.Net.Authentication.ApiCredentials(
-            //        "6heJmUYr1M6fQGCQbKdgadG9psamqvIDYV29i6bCvK3BwmpF6MoR3AfoNYY8CNSZ",
+            //        "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", 
+            //        "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"),
             //    LogVerbosity = CryptoExchange.Net.Logging.LogVerbosity.Debug,
             //    LogWriters = { Console.Out }
             //});

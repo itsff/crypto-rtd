@@ -34,8 +34,8 @@ namespace CryptoRtd
 
         // Oldie but goodie. WebSocket library that works on .NET 4.0
         GdaxWebSocketClient _socket;
+        BinanceAdapter _binanceAdapter;
 
-        public const string BINANCE = "BINANCE";
         public const string GDAX = "GDAX";
 
         public CryptoRtdServer ()
@@ -43,14 +43,7 @@ namespace CryptoRtd
             _subMgr = new SubscriptionManager();
             _socket = new GdaxWebSocketClient(new Uri("wss://ws-feed.gdax.com"));
 
-
-            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
-
-            //Assembly assem = Assembly.LoadFile(@"P:\crypto-rtd\strong\CryptoExchange.Net.dll");
-            //if (assem == null)
-            //    Console.WriteLine("Unable to load assembly...");
-            //else
-            //    Console.WriteLine(assem.FullName);
+            _binanceAdapter = new BinanceAdapter(_subMgr);
         }
 
         //
@@ -112,15 +105,19 @@ namespace CryptoRtd
             newValues = true;
 
             // We assume 3 strings: Origin, Instrument, Field
-            if (strings.Length == 3)
+            if (strings.Length >= 3)
             {
                 // Crappy COM-style arrays...
                 string origin = strings.GetValue(0).ToString().ToUpperInvariant();         // The Exchange
                 string instrument = strings.GetValue(1).ToString().ToUpperInvariant();
                 string field = strings.GetValue(2).ToString().ToUpperInvariant();
 
-                if (field.Equals("ALL_FIELDS"))
-                    return RtdFields.ALL_FIELDS;
+                //if (field.Equals("ALL_FIELDS"))
+                //{
+                //    Array comArray = new object[1,RtdFields.ALL_FIELDS.Length];
+                //    for (int i = 0; i < RtdFields.ALL_FIELDS.Length; i++)
+                //        comArray.SetValue(RtdFields.ALL_FIELDS[i], 0,i);
+                //}
 
                 switch (origin)
                 {
@@ -137,15 +134,35 @@ namespace CryptoRtd
                         }
                         SubscribeGdaxWebSocketToTicker(instrument);
                         break;
-                    case BINANCE:
-                        return SubscribeBinance(instrument, field);
-                    default:
-                        return SubscriptionManager.UninitializedValue;
-                }
+                    case BinanceAdapter.BINANCE:
+                        int depth = -1;
+                        if (strings.Length > 3)
+                            Int32.TryParse(strings.GetValue(3).ToString(), out depth);
 
+                        lock (_subMgr)
+                        {
+                            if (depth < 0)
+                                _subMgr.Subscribe(
+                                    topicId,
+                                    origin,
+                                    String.Empty,
+                                    instrument,
+                                    field);
+                            else 
+                                _subMgr.Subscribe(
+                                    topicId,
+                                    origin,
+                                    String.Empty,
+                                    instrument,
+                                    field,
+                                    depth);
+                        }
+                        return _binanceAdapter.SubscribeBinance(instrument, field, depth);
+                }
+                return SubscriptionManager.UninitializedValue;
             }
 
-            return "ERROR: Expected: origin, vendor, instrument, field";
+            return "ERROR: Expected: origin, vendor, instrument, field, [depth]";
         }
 
         //
@@ -274,87 +291,6 @@ namespace CryptoRtd
         {
             _socket.SubscribeTickers(instrument);
         }
-        private object SubscribeBinance(string instrument, string field)
-        {
-            switch(field)
-            {
-                case RtdFields.PRICE:
-                case RtdFields.SYMBOL:
-                    return SubscribeBinancePrice(instrument, field);
-                default:
-                    return SubscribeBinance24HPrice(instrument, field);
-            }
-        }
-
-        private object CacheResult(string origin, string instrument, string field, object value)
-        {
-            lock (_subMgr)
-                _subMgr.Set(SubscriptionManager.FormatPath(BINANCE, string.Empty, instrument, field), value.ToString());
-
-            return value;
-        }
-
-        private object SubscribeBinancePrice(string instrument, string field)
-        {
-            using (var client = new BinanceClient())
-            {
-                CallResult<BinancePrice> result = client.GetPrice(instrument);
-
-                if (result.Success) {
-                    switch (field)
-                    {
-                        case RtdFields.PRICE: return CacheResult(BINANCE, instrument, field, result.Data.Price);
-                        case RtdFields.SYMBOL: return CacheResult(BINANCE, instrument, field, result.Data.Symbol);
-                    }
-                    return SubscriptionManager.UninitializedValue;
-                } else
-                    return CacheResult(BINANCE, instrument, field, result.Error.Message);
-            }
-        }
-        private object SubscribeBinance24HPrice(string instrument, string field)
-        {
-            using (var client = new BinanceClient())
-            {
-                CallResult<Binance24HPrice> result = client.Get24HPrice(instrument);
-
-                if (result.Success)
-                {
-                    switch (field)
-                    {
-                        case RtdFields.FIRST_ID: return CacheResult(BINANCE, instrument, field, result.Data.FirstId);
-                        case RtdFields.LAST_ID: return CacheResult(BINANCE, instrument, field, result.Data.LastId);
-                        case RtdFields.QUOTE_VOL: return CacheResult(BINANCE, instrument, field, result.Data.QuoteVolume);
-                        case RtdFields.VOL: return CacheResult(BINANCE, instrument, field, result.Data.Volume);
-
-                        case RtdFields.ASK: return CacheResult(BINANCE, instrument, field, result.Data.AskPrice);
-                        case RtdFields.ASK_SIZE: return CacheResult(BINANCE, instrument, field, result.Data.AskQuantity);
-                        case RtdFields.BID: return CacheResult(BINANCE, instrument, field, result.Data.BidPrice);
-                        case RtdFields.BID_SIZE: return CacheResult(BINANCE, instrument, field, result.Data.BidQuantity);
-
-                        case RtdFields.LOW: return CacheResult(BINANCE, instrument, field, result.Data.LowPrice);
-                        case RtdFields.HIGH: return CacheResult(BINANCE, instrument, field, result.Data.HighPrice);
-                        case RtdFields.LAST: return CacheResult(BINANCE, instrument, field, result.Data.LastPrice);
-                        case RtdFields.LAST_SIZE: return CacheResult(BINANCE, instrument, field, result.Data.LastQuantity);
-                        case RtdFields.OPEN: return CacheResult(BINANCE, instrument, field, result.Data.OpenPrice);
-                        case RtdFields.OPEN_TIME: return CacheResult(BINANCE, instrument, field, result.Data.OpenTime);
-                        case RtdFields.CLOSE: return CacheResult(BINANCE, instrument, field, result.Data.PreviousClosePrice);
-                        case RtdFields.CLOSE_TIME: return CacheResult(BINANCE, instrument, field, result.Data.CloseTime);
-
-                        case RtdFields.VWAP: return CacheResult(BINANCE, instrument, field, result.Data.WeightedAveragePrice);
-                        case RtdFields.PRICE_PCT: return CacheResult(BINANCE, instrument, field, result.Data.PriceChangePercent/100);
-                        case RtdFields.PRICE_CHG: return CacheResult(BINANCE, instrument, field, result.Data.PriceChange);
-                        case RtdFields.TRADES: return CacheResult(BINANCE, instrument, field, result.Data.Trades);
-
-                        case RtdFields.SPREAD: return CacheResult(BINANCE, instrument, field, result.Data.AskPrice - result.Data.BidPrice);
-                    }
-                    return SubscriptionManager.UninitializedValue;
-                }
-                else
-                    return CacheResult(BINANCE, instrument, field, result.Error.Message);
-            }
-        }
-
-
         List<UpdatedValue> GetUpdatedValues ()
         {
             lock (_subMgr)
@@ -370,12 +306,12 @@ namespace CryptoRtd
         public int TopicId { get; private set; }
         public object Value { get; private set; }
 
-        public UpdatedValue (int topicId, string value) : this()
+        public UpdatedValue (int topicId, object value) : this()
         {
             TopicId = topicId;
 
             Decimal dec;
-            if (Decimal.TryParse(value, out dec))
+            if (Decimal.TryParse(value.ToString(), out dec))
                 Value = dec;
             else 
                 Value = value;
@@ -404,8 +340,17 @@ namespace CryptoRtd
                 topicId,
                 FormatPath(origin, vendor, instrument, field));
 
-            _subByTopicId.Add(topicId, subInfo);
-            _subByPath.Add(subInfo.Path, subInfo);
+            _subByTopicId[topicId] = subInfo;
+            _subByPath[subInfo.Path] = subInfo;
+        }
+        public void Subscribe(int topicId, string origin, string vendor, string instrument, string field, int depth)
+        {
+            var subInfo = new SubInfo(
+                topicId,
+                FormatPath(origin, vendor, instrument, field, depth));
+
+            _subByTopicId[topicId] = subInfo;
+            _subByPath[subInfo.Path] = subInfo;
         }
 
         public void Unsubscribe (int topicId)
@@ -437,7 +382,7 @@ namespace CryptoRtd
             return updated;
         }
 
-        public void Set(string path, string value)
+        public void Set(string path, object value)
         {
             SubInfo subInfo;
             if (_subByPath.TryGetValue(path, out subInfo))
@@ -449,8 +394,7 @@ namespace CryptoRtd
                 }
             }
         }
-
-        public static string FormatPath (string origin, string vendor, string instrument, string field)
+        public static string FormatPath(string origin, string vendor, string instrument, string field)
         {
             return string.Format("{0}/{1}/{2}/{3}",
                                  origin.ToUpperInvariant(),
@@ -458,15 +402,32 @@ namespace CryptoRtd
                                  instrument.ToUpperInvariant(),
                                  field.ToUpperInvariant());
         }
+        public static string FormatPath(string origin, string vendor, string instrument, string field, int depth)
+        {
+            return string.Format("{0}/{1}/{2}/{3}/{4}",
+                                 origin.ToUpperInvariant(),
+                                 vendor.ToUpperInvariant(),
+                                 instrument.ToUpperInvariant(),
+                                 field.ToUpperInvariant(),
+                                 depth);
+        }
+
+        public void MakeDepthDirty()
+        {
+            foreach (var subInfo in _subByTopicId.Values)
+            {
+                subInfo.IsDirty = false;
+            }
+        }
 
         class SubInfo
         {
             public int TopicId { get; private set; }
             public string Path { get; private set; }
 
-            private string _value;
+            private object _value;
 
-            public string Value
+            public object Value
             {
                 get { return _value; }
                 set
