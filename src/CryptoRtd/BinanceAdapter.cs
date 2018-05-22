@@ -14,57 +14,37 @@ namespace CryptoRtd
     {
         public const string BINANCE = "BINANCE";
 
-        SubscriptionManager _subMgr;
+        private SubscriptionManager _subMgr;
+
+        private Dictionary<String, BinanceSocketClient> SocketTickerCache = new Dictionary<string, BinanceSocketClient>();
+        private Dictionary<String, BinanceSocketClient> SocketDepthCache = new Dictionary<string, BinanceSocketClient>();
+        private Dictionary<BinanceSocketClient, BinanceStreamTick> TickerCache = new Dictionary<BinanceSocketClient, BinanceStreamTick>();
+        private Dictionary<BinanceSocketClient, BinanceStreamDepth> DepthCache = new Dictionary<BinanceSocketClient, BinanceStreamDepth>();
 
         public BinanceAdapter(SubscriptionManager subMgr)
         {
             _subMgr = subMgr;
 
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
-            //BinanceSocketClient.SetDefaultOptions(new BinanceSocketClientOptions()
-            //{
-            //    ApiCredentials = new CryptoExchange.Net.Authentication.ApiCredentials(
-            //        "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", 
-            //        "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"),
-            //    LogVerbosity = CryptoExchange.Net.Logging.LogVerbosity.Debug,
-            //    LogWriters = { Console.Out }
-            //});
-
-
-            //BinanceClient.SetDefaultOptions(new BinanceClientOptions()
-            //{
-            //    ApiCredentials = new CryptoExchange.Net.Authentication.ApiCredentials(
-            //        "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", 
-            //        "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"),
-            //    LogVerbosity = CryptoExchange.Net.Logging.LogVerbosity.Debug,
-            //    LogWriters = { Console.Out }
-            //});
-
-        }
-
-        public object SubscribeBinance(string instrument, string field, int depth)
-        {
-            switch (field)
+            BinanceSocketClient.SetDefaultOptions(new BinanceSocketClientOptions()
             {
-                case RtdFields.PRICE:
-                case RtdFields.SYMBOL:
-                    return GetPrice(instrument, field);
+            //    ApiCredentials = new CryptoExchange.Net.Authentication.ApiCredentials(
+            //        "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", 
+            //        "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"),
+                LogVerbosity = CryptoExchange.Net.Logging.LogVerbosity.Debug,
+                LogWriters = { Console.Out }
+            });
 
-                case RtdFields.OPEN:
-                case RtdFields.OPEN_TIME:
-                case RtdFields.CLOSE:
-                case RtdFields.CLOSE_TIME:
-                    return GetPrice(instrument, field);
 
-                case RtdFields.ASK_DEPTH:
-                case RtdFields.ASK_DEPTH_SIZE:
-                case RtdFields.BID_DEPTH:
-                case RtdFields.BID_DEPTH_SIZE:
-                    return SubscribeBinanceDepth(instrument, field, depth);
+            BinanceClient.SetDefaultOptions(new BinanceClientOptions()
+            {
+            //    ApiCredentials = new CryptoExchange.Net.Authentication.ApiCredentials(
+            //        "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", 
+            //        "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"),
+                LogVerbosity = CryptoExchange.Net.Logging.LogVerbosity.Debug,
+                LogWriters = { Console.Out }
+            });
 
-                default:
-                    return SubscribeBinanceSymbolTicker(instrument, field);
-            }
         }
 
         private object CacheResult(string origin, string instrument, string field, object value)
@@ -76,6 +56,42 @@ namespace CryptoRtd
 
             return value;
         }
+        private object CacheResult(string origin, string instrument, string field, int depth, object value)
+        {
+            lock (_subMgr)
+            {
+                _subMgr.Set(SubscriptionManager.FormatPath(BINANCE, string.Empty, instrument, field, depth), value);
+            }
+
+            return value;
+        }
+
+        public object Subscribe(string instrument, string field, int depth)
+        {
+            switch (field)
+            {
+                case RtdFields.PRICE:
+                case RtdFields.SYMBOL:
+                    return SubscribeTick(instrument, field);
+
+                case RtdFields.OPEN:
+                case RtdFields.OPEN_TIME:
+                case RtdFields.CLOSE:
+                case RtdFields.CLOSE_TIME:
+                    return Get24HPrice(instrument, field);
+
+                case RtdFields.ASK_DEPTH:
+                case RtdFields.ASK_DEPTH_SIZE:
+                case RtdFields.BID_DEPTH:
+                case RtdFields.BID_DEPTH_SIZE:
+                    return SubscribeDepth(instrument, field, depth);
+
+                default:
+                    return SubscribeTick(instrument, field);
+            }
+        }
+        // synchronously
+        [Obsolete]
         private object GetPrice(string instrument, string field)
         {
             using (var client = new BinanceClient())
@@ -95,6 +111,8 @@ namespace CryptoRtd
                     return CacheResult(BINANCE, instrument, field, result.Error.Message);
             }
         }
+        // synchronously
+        [Obsolete]
         private object Get24HPrice(string instrument, string field)
         {
             using (var client = new BinanceClient())
@@ -137,11 +155,6 @@ namespace CryptoRtd
                     return CacheResult(BINANCE, instrument, field, result.Error.Message);
             }
         }
-
-        private Dictionary<String, BinanceSocketClient> SocketTickerCache = new Dictionary<string, BinanceSocketClient>();
-        private Dictionary<String, BinanceSocketClient> SocketDepthCache = new Dictionary<string, BinanceSocketClient>();
-        private Dictionary<BinanceSocketClient, BinanceStreamTick> TickerCache = new Dictionary<BinanceSocketClient, BinanceStreamTick>();
-        private Dictionary<BinanceSocketClient, BinanceStreamDepth> DepthCache = new Dictionary<BinanceSocketClient, BinanceStreamDepth>();
 
         private void CacheTick(BinanceStreamTick data)
         {
@@ -195,7 +208,7 @@ namespace CryptoRtd
             return SubscriptionManager.UninitializedValue;
         }
 
-        private object SubscribeBinanceSymbolTicker(string instrument, string field)
+        private object SubscribeTick(string instrument, string field)
         {
             var key = instrument;// + "|" + field;
 
@@ -222,27 +235,33 @@ namespace CryptoRtd
             }
         }
 
-        private object CacheResult(string origin, string instrument, string field, int depth, object value)
-        {
-            lock (_subMgr)
-            {
-                _subMgr.Set(SubscriptionManager.FormatPath(BINANCE, string.Empty, instrument, field, depth), value);
-            }
-
-            return value;
-        }
-
         private void CacheDepth(BinanceStreamDepth stream, int depth)
         {
             var instrument = stream.Symbol;
             var bidCount = stream.Bids.Count;
             var askCount = stream.Asks.Count;
 
+            if (depth < bidCount)
+            {
+                CacheResult(BINANCE, instrument, RtdFields.BID_DEPTH, depth, stream.Bids[depth].Price);
+                CacheResult(BINANCE, instrument, RtdFields.BID_DEPTH_SIZE, depth, stream.Bids[depth].Quantity);
+            }
+            else
+            {
+                CacheResult(BINANCE, instrument, RtdFields.BID_DEPTH, depth, SubscriptionManager.UninitializedValue);
+                CacheResult(BINANCE, instrument, RtdFields.BID_DEPTH_SIZE, depth, SubscriptionManager.UninitializedValue);
+            }
 
-            CacheResult(BINANCE, instrument, RtdFields.BID_DEPTH, depth, depth < bidCount ? stream.Bids[depth].Price.ToString() : SubscriptionManager.UninitializedValue);
-            CacheResult(BINANCE, instrument, RtdFields.BID_DEPTH_SIZE, depth, depth < bidCount ? stream.Bids[depth].Quantity.ToString() : SubscriptionManager.UninitializedValue);
-            CacheResult(BINANCE, instrument, RtdFields.ASK_DEPTH, depth, depth < askCount ? stream.Asks[depth].Price.ToString() : SubscriptionManager.UninitializedValue);
-            CacheResult(BINANCE, instrument, RtdFields.ASK_DEPTH_SIZE, depth, depth < askCount ? stream.Asks[depth].Quantity.ToString() : SubscriptionManager.UninitializedValue);
+            if (depth < askCount)
+            {
+                CacheResult(BINANCE, instrument, RtdFields.ASK_DEPTH, depth, stream.Asks[depth].Price);
+                CacheResult(BINANCE, instrument, RtdFields.ASK_DEPTH_SIZE, depth, stream.Asks[depth].Quantity);
+            }
+            else
+            {
+                CacheResult(BINANCE, instrument, RtdFields.ASK_DEPTH, depth, SubscriptionManager.UninitializedValue);
+                CacheResult(BINANCE, instrument, RtdFields.ASK_DEPTH_SIZE, depth, SubscriptionManager.UninitializedValue);
+            }
             _subMgr.MakeDepthDirty();
         }
 
@@ -280,7 +299,7 @@ namespace CryptoRtd
             return SubscriptionManager.UninitializedValue;
         }
 
-        private object SubscribeBinanceDepth(string instrument, string field, int depth)
+        private object SubscribeDepth(string instrument, string field, int depth)
         {
             var key = instrument;// + "|" + field;
 

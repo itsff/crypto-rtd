@@ -157,7 +157,7 @@ namespace CryptoRtd
                                     field,
                                     depth);
                         }
-                        return _binanceAdapter.SubscribeBinance(instrument, field, depth);
+                        return _binanceAdapter.Subscribe(instrument, field, depth);
                 }
                 return SubscriptionManager.UninitializedValue;
             }

@@ -49,6 +49,6 @@ namespace CryptoRtd
         public const string BID_DEPTH_SIZE = "BID_DEPTH_SIZE";
         public static readonly string[] DEPTH = { ASK_DEPTH, ASK_DEPTH_SIZE, BID_DEPTH, BID_DEPTH_SIZE };
 
-        public static string[] ALL_FIELDS { get { return PRICE_FIELDS.Concat(PRICE_24H).ToArray(); } }
+        public static string[] ALL_FIELDS { get { return PRICE_FIELDS.Concat(PRICE_24H).Concat(DEPTH).ToArray(); } }
     }
 }
