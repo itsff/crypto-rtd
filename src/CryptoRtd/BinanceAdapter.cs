@@ -16,10 +16,11 @@ namespace CryptoRtd
 
         private SubscriptionManager _subMgr;
 
-        private Dictionary<String, BinanceSocketClient> SocketTickerCache = new Dictionary<string, BinanceSocketClient>();
-        private Dictionary<String, BinanceSocketClient> SocketDepthCache = new Dictionary<string, BinanceSocketClient>();
-        private Dictionary<BinanceSocketClient, BinanceStreamTick> TickerCache = new Dictionary<BinanceSocketClient, BinanceStreamTick>();
-        private Dictionary<BinanceSocketClient, BinanceStreamDepth> DepthCache = new Dictionary<BinanceSocketClient, BinanceStreamDepth>();
+        BinanceSocketClient socketClient;
+        private Dictionary<string, bool> SubscribedTick = new Dictionary<string, bool>();
+        private Dictionary<string, bool> SubscribedDepth = new Dictionary<string, bool>();
+        private Dictionary<string, BinanceStreamTick> TickCache = new Dictionary<string, BinanceStreamTick>();
+        private Dictionary<string, BinanceStreamDepth> DepthCache = new Dictionary<string, BinanceStreamDepth>();
 
         public BinanceAdapter(SubscriptionManager subMgr)
         {
@@ -35,7 +36,6 @@ namespace CryptoRtd
                 LogWriters = { Console.Out }
             });
 
-
             BinanceClient.SetDefaultOptions(new BinanceClientOptions()
             {
             //    ApiCredentials = new CryptoExchange.Net.Authentication.ApiCredentials(
@@ -45,13 +45,14 @@ namespace CryptoRtd
                 LogWriters = { Console.Out }
             });
 
+            socketClient = new BinanceSocketClient();
         }
 
         private object CacheResult(string origin, string instrument, string field, object value)
         {
             lock (_subMgr)
             {
-                _subMgr.Set(SubscriptionManager.FormatPath(BINANCE, string.Empty, instrument, field), value.ToString());
+                _subMgr.Set(SubscriptionManager.FormatPath(BINANCE, string.Empty, instrument, field), value);
             }
 
             return value;
@@ -212,57 +213,53 @@ namespace CryptoRtd
         {
             var key = instrument;// + "|" + field;
 
-            BinanceSocketClient client;
-            if (SocketTickerCache.TryGetValue(key, out client))
-            {
+            if (SubscribedTick.ContainsKey(key)) { 
+
                 BinanceStreamTick tick;
-                if (TickerCache.TryGetValue(client, out tick))
+                if (TickCache.TryGetValue(key, out tick))
                     return DecodeTick(tick, field);
                 else
                     return SubscriptionManager.UninitializedValue;
             }
             else
             {
-                client = new BinanceSocketClient();
-                SocketTickerCache[key] = client;
-
-                var successSymbol = client.SubscribeToSymbolTicker(instrument, (BinanceStreamTick data) =>
+                SubscribedTick.Add(instrument, true);
+                var successSymbol = socketClient.SubscribeToSymbolTicker(instrument, (BinanceStreamTick data) =>
                 {
-                    TickerCache[client] = data;
+                    TickCache[key] = data;
                     CacheTick(data);
                 });
                 return SubscriptionManager.UninitializedValue;
             }
         }
 
-        private void CacheDepth(BinanceStreamDepth stream, int depth)
+        private void CacheDepth(BinanceStreamDepth stream)
         {
             var instrument = stream.Symbol;
             var bidCount = stream.Bids.Count;
             var askCount = stream.Asks.Count;
 
-            if (depth < bidCount)
+            for(int depth = 0; depth < bidCount; depth++)
             {
                 CacheResult(BINANCE, instrument, RtdFields.BID_DEPTH, depth, stream.Bids[depth].Price);
                 CacheResult(BINANCE, instrument, RtdFields.BID_DEPTH_SIZE, depth, stream.Bids[depth].Quantity);
             }
-            else
+            for (int depth = bidCount; depth < 10; depth++)
             {
                 CacheResult(BINANCE, instrument, RtdFields.BID_DEPTH, depth, SubscriptionManager.UninitializedValue);
                 CacheResult(BINANCE, instrument, RtdFields.BID_DEPTH_SIZE, depth, SubscriptionManager.UninitializedValue);
             }
 
-            if (depth < askCount)
+            for (int depth = 0; depth < askCount; depth++)
             {
                 CacheResult(BINANCE, instrument, RtdFields.ASK_DEPTH, depth, stream.Asks[depth].Price);
                 CacheResult(BINANCE, instrument, RtdFields.ASK_DEPTH_SIZE, depth, stream.Asks[depth].Quantity);
             }
-            else
+            for (int depth = askCount; depth < 10; depth++)
             {
                 CacheResult(BINANCE, instrument, RtdFields.ASK_DEPTH, depth, SubscriptionManager.UninitializedValue);
                 CacheResult(BINANCE, instrument, RtdFields.ASK_DEPTH_SIZE, depth, SubscriptionManager.UninitializedValue);
             }
-            _subMgr.MakeDepthDirty();
         }
 
         private object DecodeDepth(BinanceStreamDepth stream, string field, int depth)
@@ -303,24 +300,21 @@ namespace CryptoRtd
         {
             var key = instrument;// + "|" + field;
 
-            BinanceSocketClient client;
-            if (SocketDepthCache.TryGetValue(key, out client))
+            if (SubscribedDepth.ContainsKey(key))
             {
                 BinanceStreamDepth stream;
-                if (DepthCache.TryGetValue(client, out stream))
+                if (DepthCache.TryGetValue(key, out stream))
                     return DecodeDepth(stream, field, depth);
                 else
                     return SubscriptionManager.UninitializedValue;
             }
             else
             {
-                client = new BinanceSocketClient();
-                SocketDepthCache[key] = client;
-
-                var successSymbol = client.SubscribeToDepthStream(instrument, (BinanceStreamDepth stream) =>
+                SubscribedDepth.Add(key, true);
+                var successSymbol = socketClient.SubscribeToDepthStream(instrument, (BinanceStreamDepth stream) =>
                 {
-                    DepthCache[client] = stream;
-                    CacheDepth(stream, depth);
+                    DepthCache[key] = stream;
+                    CacheDepth(stream);
                 });
                 return SubscriptionManager.UninitializedValue;
             }
