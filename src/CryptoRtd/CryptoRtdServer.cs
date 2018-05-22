@@ -411,15 +411,6 @@ namespace CryptoRtd
                                  field.ToUpperInvariant(),
                                  depth);
         }
-
-        public void MakeDepthDirty()
-        {
-            foreach (var subInfo in _subByTopicId.Values)
-            {
-                subInfo.IsDirty = false;
-            }
-        }
-
         class SubInfo
         {
             public int TopicId { get; private set; }
