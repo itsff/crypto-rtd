@@ -47,8 +47,20 @@ namespace CryptoRtd
         public const string ASK_DEPTH_SIZE = "ASK_DEPTH_SIZE";
         public const string BID_DEPTH = "BID_DEPTH";
         public const string BID_DEPTH_SIZE = "BID_DEPTH_SIZE";
-        public static readonly string[] DEPTH = { ASK_DEPTH, ASK_DEPTH_SIZE, BID_DEPTH, BID_DEPTH_SIZE };
+        public static readonly string[] DEPTH = { SYMBOL, ASK_DEPTH, ASK_DEPTH_SIZE, BID_DEPTH, BID_DEPTH_SIZE };
 
-        public static string[] ALL_FIELDS { get { return PRICE_FIELDS.Concat(PRICE_24H).Concat(DEPTH).ToArray(); } }
+
+        // Trade
+        public const string TRADE_ID = "TRADE_ID";
+        public const string TRADE_PRICE = "TRADE_PRICE";
+        public const string TRADE_QUANTITY = "TRADE_QUANTITY";
+        public const string BUYER_ORDER_ID = "BUYER_ORDER_ID";
+        public const string SELLER_ORDER_ID = "SELLER_ORDER_ID";
+        public const string BUYER_IS_MAKER = "BUYER_IS_MAKER";
+        public const string IGNORE = "IGNORE";
+
+        public static readonly string[] TRADE = { SYMBOL, TRADE_ID, TRADE_PRICE, TRADE_QUANTITY, BUYER_ORDER_ID, SELLER_ORDER_ID, BUYER_IS_MAKER, IGNORE };
+
+        public static string[] ALL_FIELDS { get { return PRICE_FIELDS.Concat(PRICE_24H).Concat(DEPTH).Concat(TRADE).ToArray(); } }
     }
 }
