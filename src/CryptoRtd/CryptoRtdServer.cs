@@ -290,6 +290,11 @@ namespace CryptoRtd
                             instrument: prod,
                             field: "LAST_SIDE"),
                         side);
+
+                    _subMgr.Set(SubscriptionManager.FormatPath(origin, String.Empty, prod, "high_24h"), jobj.high_24h);
+                    _subMgr.Set(SubscriptionManager.FormatPath(origin, String.Empty, prod, "low_24h"), jobj.low_24h);
+                    _subMgr.Set(SubscriptionManager.FormatPath(origin, String.Empty, prod, "open_24h"), jobj.open_24h);
+                    _subMgr.Set(SubscriptionManager.FormatPath(origin, String.Empty, prod, "volume_24h"), jobj.volume_24h);
                 }
             }
         }
