@@ -17,6 +17,7 @@ namespace CryptoRtd
         public const string BINANCE_CANDLE = "BINANCE_CANDLE";
         public const string BINANCE_DEPTH = "BINANCE_DEPTH";
         public const string BINANCE_TRADE = "BINANCE_TRADE";
+        public const string BINANCE_HISTORY = "BINANCE_HISTORY";
 
         private SubscriptionManager _subMgr;
 
@@ -25,11 +26,13 @@ namespace CryptoRtd
         private Dictionary<string, bool> SubscribedDepth = new Dictionary<string, bool>();
         private Dictionary<string, bool> SubscribedTrade = new Dictionary<string, bool>();
         private Dictionary<string, bool> SubscribedCandle = new Dictionary<string, bool>();
+        private Dictionary<string, bool> SubscribedHistoricTrades = new Dictionary<string, bool>();
 
         private Dictionary<string, BinanceStreamTick> TickCache = new Dictionary<string, BinanceStreamTick>();
         private Dictionary<string, BinanceStreamOrderBook> DepthCache = new Dictionary<string, BinanceStreamOrderBook>();
         private Dictionary<string, BinanceStreamAggregatedTrade> TradeCache = new Dictionary<string, BinanceStreamAggregatedTrade>();
         private Dictionary<string, BinanceStreamKlineData> CandleCache = new Dictionary<string, BinanceStreamKlineData>();
+        private Dictionary<string, BinanceRecentTrade[]> HistoricTradesCache = new Dictionary<string, BinanceRecentTrade[]>();
 
         public BinanceAdapter(SubscriptionManager subMgr)
         {
@@ -84,7 +87,8 @@ namespace CryptoRtd
                     return SubscribeTick(instrument, field);
 
                 case BINANCE_24H:
-                    return Get24HPrice(instrument, field);
+                    Get24HPriceAsync(instrument, field);
+                    return SubscriptionManager.UninitializedValue;
 
                 case BINANCE_CANDLE:
                     return SubscribeCandle(instrument, field, num);
@@ -95,74 +99,87 @@ namespace CryptoRtd
                 case BINANCE_TRADE:
                     return SubscribeTrade(instrument, field);
 
+                case BINANCE_HISTORY:
+                    GetHistoricalTradesAsync(instrument, field, num);
+                    return SubscriptionManager.UninitializedValue;
+
                 default:
                     return "Unsupported origin: " + origin;
             }
         }
-        // synchronously
+
         [Obsolete]
         private object GetPrice(string instrument, string field)
         {
-            using (var client = new BinanceClient())
-            {
-                CallResult<BinancePrice> result = client.GetPrice(instrument);
-
-                if (result.Success)
-                {
-                    switch (field)
-                    {
-                        case RtdFields.PRICE: return CacheResult(BINANCE, instrument, field, result.Data.Price);
-                        case RtdFields.SYMBOL: return CacheResult(BINANCE, instrument, field, result.Data.Symbol);
-                    }
-                    return SubscriptionManager.UninitializedValue;
-                }
-                else
-                    return CacheResult(BINANCE, instrument, field, result.Error.Message);
-            }
+            GetPriceAsync(instrument, field);
+            return SubscriptionManager.UninitializedValue;
         }
-        // synchronously
+
         [Obsolete]
-        private object Get24HPrice(string instrument, string field)
+        private async void GetPriceAsync(string instrument, string field)
         {
             using (var client = new BinanceClient())
             {
-                CallResult<Binance24HPrice> result = client.Get24HPrice(instrument);
+                CallResult<BinancePrice> result = await client.GetPriceAsync(instrument);
 
                 if (result.Success)
                 {
                     var data = result.Data;
                     switch (field)
                     {
-                        case RtdFields.FIRST_ID: return CacheResult(BINANCE_24H, instrument, field, data.FirstId);
-                        case RtdFields.LAST_ID: return CacheResult(BINANCE_24H, instrument, field, data.LastId);
-                        case RtdFields.QUOTE_VOL: return CacheResult(BINANCE_24H, instrument, field, data.QuoteVolume);
-                        case RtdFields.VOL: return CacheResult(BINANCE_24H, instrument, field, data.Volume);
-
-                        case RtdFields.ASK: return CacheResult(BINANCE_24H, instrument, field, data.AskPrice);
-                        case RtdFields.ASK_SIZE: return CacheResult(BINANCE_24H, instrument, field, data.AskQuantity);
-                        case RtdFields.BID: return CacheResult(BINANCE_24H, instrument, field, data.BidPrice);
-                        case RtdFields.BID_SIZE: return CacheResult(BINANCE_24H, instrument, field, data.BidQuantity);
-
-                        case RtdFields.LOW: return CacheResult(BINANCE_24H, instrument, field, data.LowPrice);
-                        case RtdFields.HIGH: return CacheResult(BINANCE_24H, instrument, field, data.HighPrice);
-                        case RtdFields.LAST: return CacheResult(BINANCE_24H, instrument, field, data.LastPrice);
-                        case RtdFields.LAST_SIZE: return CacheResult(BINANCE_24H, instrument, field, data.LastQuantity);
-                        case RtdFields.OPEN: return CacheResult(BINANCE_24H, instrument, field, data.OpenPrice);
-                        case RtdFields.OPEN_TIME: return CacheResult(BINANCE_24H, instrument, field, data.OpenTime);
-                        case RtdFields.CLOSE: return CacheResult(BINANCE_24H, instrument, field, data.PreviousClosePrice);
-                        case RtdFields.CLOSE_TIME: return CacheResult(BINANCE_24H, instrument, field, data.CloseTime);
-
-                        case RtdFields.VWAP: return CacheResult(BINANCE_24H, instrument, field, data.WeightedAveragePrice);
-                        case RtdFields.PRICE_PCT: return CacheResult(BINANCE_24H, instrument, field, data.PriceChangePercent / 100);
-                        case RtdFields.PRICE_CHG: return CacheResult(BINANCE_24H, instrument, field, data.PriceChange);
-                        case RtdFields.TRADES: return CacheResult(BINANCE_24H, instrument, field, data.Trades);
-
-                        case RtdFields.SPREAD: return CacheResult(BINANCE_24H, instrument, field, data.AskPrice - data.BidPrice);
+                        case RtdFields.PRICE: CacheResult(BINANCE, instrument, field, data.Price); break;
+                        case RtdFields.SYMBOL: CacheResult(BINANCE, instrument, field, data.Symbol); break;
+                        default:
+                            CacheResult(BINANCE, instrument, field, SubscriptionManager.UnsupportedField); break;
                     }
-                    return SubscriptionManager.UninitializedValue;
                 }
                 else
-                    return CacheResult(BINANCE, instrument, field, result.Error.Message);
+                    CacheResult(BINANCE, instrument, field, result.Error.Message);
+            }
+        }
+
+        private async void Get24HPriceAsync(string instrument, string field)
+        {
+            using (var client = new BinanceClient())
+            {
+                CallResult<Binance24HPrice> result = await client.Get24HPriceAsync(instrument);
+
+                if (result.Success)
+                {
+                    var data = result.Data;
+                    switch (field)
+                    {
+                        case RtdFields.FIRST_ID: CacheResult(BINANCE_24H, instrument, field, data.FirstId); break;
+                        case RtdFields.LAST_ID: CacheResult(BINANCE_24H, instrument, field, data.LastId); break;
+                        case RtdFields.QUOTE_VOL: CacheResult(BINANCE_24H, instrument, field, data.QuoteVolume); break;
+                        case RtdFields.VOL: CacheResult(BINANCE_24H, instrument, field, data.Volume); break;
+
+                        case RtdFields.ASK: CacheResult(BINANCE_24H, instrument, field, data.AskPrice); break;
+                        case RtdFields.ASK_SIZE: CacheResult(BINANCE_24H, instrument, field, data.AskQuantity); break;
+                        case RtdFields.BID: CacheResult(BINANCE_24H, instrument, field, data.BidPrice); break;
+                        case RtdFields.BID_SIZE: CacheResult(BINANCE_24H, instrument, field, data.BidQuantity); break;
+
+                        case RtdFields.LOW: CacheResult(BINANCE_24H, instrument, field, data.LowPrice); break;
+                        case RtdFields.HIGH: CacheResult(BINANCE_24H, instrument, field, data.HighPrice); break;
+                        case RtdFields.LAST: CacheResult(BINANCE_24H, instrument, field, data.LastPrice); break;
+                        case RtdFields.LAST_SIZE: CacheResult(BINANCE_24H, instrument, field, data.LastQuantity); break;
+                        case RtdFields.OPEN: CacheResult(BINANCE_24H, instrument, field, data.OpenPrice); break;
+                        case RtdFields.OPEN_TIME: CacheResult(BINANCE_24H, instrument, field, data.OpenTime); break;
+                        case RtdFields.CLOSE: CacheResult(BINANCE_24H, instrument, field, data.PreviousClosePrice); break;
+                        case RtdFields.CLOSE_TIME: CacheResult(BINANCE_24H, instrument, field, data.CloseTime); break;
+
+                        case RtdFields.VWAP: CacheResult(BINANCE_24H, instrument, field, data.WeightedAveragePrice); break;
+                        case RtdFields.PRICE_PCT: CacheResult(BINANCE_24H, instrument, field, data.PriceChangePercent / 100); break;
+                        case RtdFields.PRICE_CHG: CacheResult(BINANCE_24H, instrument, field, data.PriceChange); break;
+                        case RtdFields.TRADES: CacheResult(BINANCE_24H, instrument, field, data.Trades); break;
+
+                        case RtdFields.SPREAD: CacheResult(BINANCE_24H, instrument, field, data.AskPrice - data.BidPrice); break;
+                        default:
+                            CacheResult(BINANCE_24H, instrument, field, SubscriptionManager.UnsupportedField); break;
+                    }
+                }
+                else
+                    CacheResult(BINANCE_24H, instrument, field, result.Error.Message);
             }
         }
 
@@ -214,8 +231,9 @@ namespace CryptoRtd
                 case RtdFields.TRADES: return data.TotalTrades;
 
                 case RtdFields.SPREAD: return data.BestAskPrice - data.BestBidPrice;
+                default:
+                    return SubscriptionManager.UnsupportedField;
             }
-            return SubscriptionManager.UninitializedValue;
         }
 
         private object SubscribeTick(string instrument, string field)
@@ -363,7 +381,7 @@ namespace CryptoRtd
                 case RtdFields.BUYER_IS_MAKER: return stream.BuyerIsMaker;
                 case RtdFields.IGNORE: return stream.Ignore;
             }
-            return SubscriptionManager.UninitializedValue;
+            return SubscriptionManager.UnsupportedField;
         }
         private object SubscribeTrade(string instrument, string field)
         {
@@ -442,7 +460,7 @@ namespace CryptoRtd
                 case RtdFields.TAKE_BUY_VOL: return data.TakerBuyBaseAssetVolume;
                 case RtdFields.TAKE_BUY_QUOTE_VOL: return data.TakerBuyQuoteAssetVolume;
             }
-            return SubscriptionManager.UninitializedValue;
+            return SubscriptionManager.UnsupportedField;
         }
         private object SubscribeCandle(string instrument, string field, int interval)
         {
@@ -467,6 +485,65 @@ namespace CryptoRtd
                     CacheCandle(stream, interval);
                 });
                 return SubscriptionManager.UninitializedValue;
+            }
+        }
+        // Historic Trades
+        private object GetHistoricalTrades(string instrument, string field, int limit)
+        {
+            var key = instrument;
+            if (SubscribedHistoricTrades.ContainsKey(key))
+            {
+                BinanceRecentTrade[] data;
+                if (HistoricTradesCache.TryGetValue(key,out data))
+                {
+                    return DecodeHistoricTrade(data[0], field);
+                }
+                else 
+                    return SubscriptionManager.UninitializedValue;
+            } 
+            else
+            {
+                GetHistoricalTradesAsync(instrument, field, limit);
+                return SubscriptionManager.UninitializedValue;
+            }
+        }
+        private async void GetHistoricalTradesAsync(string instrument, string field, int limit)
+        {
+            var key = instrument;
+
+            using (var client = new BinanceClient()) {
+                SubscribedHistoricTrades.Add(key, true);
+                var result = await client.GetHistoricalTradesAsync(instrument, limit);
+
+                if (result.Success)
+                {
+                    HistoricTradesCache[key] = result.Data;
+                    CacheHistoricTrades(instrument, field, result.Data);
+                }
+                else
+                {
+                    CacheResult(BINANCE_HISTORY,instrument,field, result.Error.Message);
+                }
+            }
+        }
+
+        private void CacheHistoricTrades(string instrument, string field, BinanceRecentTrade[] data)
+        {
+            CacheResult(BINANCE_HISTORY, instrument, field, DecodeHistoricTrade(data[0], field));
+        }
+
+        private object DecodeHistoricTrade(BinanceRecentTrade data, string field)
+        {
+            switch(field)
+            {
+                case RtdFields.TRADE_ID: return data.Id;
+                case RtdFields.PRICE: return data.Price;
+                case RtdFields.QUANTITY: return data.Quantity;
+                case RtdFields.TRADE_TIME: return data.Time.ToLocalTime();
+                case RtdFields.IS_BEST_MATCH: return data.IsBestMatch;
+                case RtdFields.BUYER_IS_MAKER: return data.IsBuyerMaker;
+                default:
+                    return SubscriptionManager.UnsupportedField;
             }
         }
     }

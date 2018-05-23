@@ -59,6 +59,8 @@ namespace CryptoRtd
         public const string BUYER_IS_MAKER = "BUYER_IS_MAKER";
         public const string IGNORE = "IGNORE";
 
+        public const string IS_BEST_MATCH = "IS_BEST_MATCH";  // Historic
+
         public static readonly string[] TRADE = { SYMBOL, TRADE_ID, TRADE_TIME, PRICE, QUANTITY, BUYER_ORDER_ID, SELLER_ORDER_ID, BUYER_IS_MAKER, IGNORE };
 
         // Candles

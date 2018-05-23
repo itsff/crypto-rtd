@@ -139,6 +139,7 @@ namespace CryptoRtd
                     case BinanceAdapter.BINANCE_DEPTH:
                     case BinanceAdapter.BINANCE_CANDLE:
                     case BinanceAdapter.BINANCE_TRADE:
+                    case BinanceAdapter.BINANCE_HISTORY:
                         int depth = -1;
                         if (strings.Length > 3)
                             Int32.TryParse(strings.GetValue(3).ToString(), out depth);
@@ -328,7 +329,8 @@ namespace CryptoRtd
     class SubscriptionManager
     {
         public static readonly string UninitializedValue = "<?>";
-        
+        public static readonly string UnsupportedField = "<!>";
+
         readonly Dictionary<string, SubInfo> _subByPath;
         readonly Dictionary<int, SubInfo> _subByTopicId;
 
@@ -408,14 +410,14 @@ namespace CryptoRtd
                                  instrument.ToUpperInvariant(),
                                  field.ToUpperInvariant());
         }
-        public static string FormatPath(string origin, string vendor, string instrument, string field, int depth)
+        public static string FormatPath(string origin, string vendor, string instrument, string field, int num)
         {
             return string.Format("{0}/{1}/{2}/{3}/{4}",
                                  origin.ToUpperInvariant(),
                                  vendor.ToUpperInvariant(),
                                  instrument.ToUpperInvariant(),
                                  field.ToUpperInvariant(),
-                                 depth);
+                                 num);  // can be depth or limit
         }
         class SubInfo
         {
