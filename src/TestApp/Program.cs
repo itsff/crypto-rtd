@@ -25,8 +25,10 @@ namespace TestApp
             _rtd = new CryptoRtdServer();
             _rtd.ServerStart(this);
 
+            const string BINANCE = "BINANCE";
+
             foreach(string field in RtdFields.ALL_FIELDS) 
-                Sub(CryptoRtdServer.BINANCE, "ETHUSDT", field);
+                Sub(BINANCE, "ETHUSDT", field);
 
             Sub(CryptoRtdServer.GDAX, "BTC-USD", "BID");
             Sub(CryptoRtdServer.GDAX, "BTC-USD", "ASK");

@@ -52,14 +52,25 @@ namespace CryptoRtd
 
         // Trade
         public const string TRADE_ID = "TRADE_ID";
-        public const string TRADE_PRICE = "TRADE_PRICE";
-        public const string TRADE_QUANTITY = "TRADE_QUANTITY";
+        public const string QUANTITY = "QUANTITY";
         public const string BUYER_ORDER_ID = "BUYER_ORDER_ID";
         public const string SELLER_ORDER_ID = "SELLER_ORDER_ID";
         public const string BUYER_IS_MAKER = "BUYER_IS_MAKER";
         public const string IGNORE = "IGNORE";
 
-        public static readonly string[] TRADE = { SYMBOL, TRADE_ID, TRADE_PRICE, TRADE_QUANTITY, BUYER_ORDER_ID, SELLER_ORDER_ID, BUYER_IS_MAKER, IGNORE };
+        public static readonly string[] TRADE = { SYMBOL, TRADE_ID, PRICE, QUANTITY, BUYER_ORDER_ID, SELLER_ORDER_ID, BUYER_IS_MAKER, IGNORE };
+
+        // Candles
+        public const string EVENT = "EVENT";
+        public const string EVENT_TIME = "EVENT_TIME";
+        public const string FINAL = "FINAL";
+        public const string INTERVAL = "INTERVAL";
+
+        public const string TAKE_BUY_VOL = "TAKE_BUY_VOL";
+        public const string TAKE_BUY_QUOTE_VOL = "TAKE_BUY_QUOTE_VOL";
+
+        public static readonly string[] KLINE = { SYMBOL, EVENT, EVENT_TIME, OPEN_TIME, CLOSE_TIME, OPEN, CLOSE, HIGH, LOW, FINAL, INTERVAL};
+
 
         public static string[] ALL_FIELDS { get { return PRICE_FIELDS.Concat(PRICE_24H).Concat(DEPTH).Concat(TRADE).ToArray(); } }
     }

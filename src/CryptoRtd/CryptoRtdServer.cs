@@ -135,6 +135,10 @@ namespace CryptoRtd
                         SubscribeGdaxWebSocketToTicker(instrument);
                         break;
                     case BinanceAdapter.BINANCE:
+                    case BinanceAdapter.BINANCE_24H:
+                    case BinanceAdapter.BINANCE_DEPTH:
+                    case BinanceAdapter.BINANCE_CANDLE:
+                    case BinanceAdapter.BINANCE_TRADE:
                         int depth = -1;
                         if (strings.Length > 3)
                             Int32.TryParse(strings.GetValue(3).ToString(), out depth);
@@ -157,7 +161,9 @@ namespace CryptoRtd
                                     field,
                                     depth);
                         }
-                        return _binanceAdapter.Subscribe(instrument, field, depth);
+                        return _binanceAdapter.Subscribe(origin, instrument, field, depth);
+                    default:
+                        return "Unsupported origin: " + origin;
                 }
                 return SubscriptionManager.UninitializedValue;
             }
