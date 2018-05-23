@@ -28,7 +28,7 @@ namespace CryptoRtd
 
         private Dictionary<string, BinanceStreamTick> TickCache = new Dictionary<string, BinanceStreamTick>();
         private Dictionary<string, BinanceStreamOrderBook> DepthCache = new Dictionary<string, BinanceStreamOrderBook>();
-        private Dictionary<string, BinanceStreamTrade> TradeCache = new Dictionary<string, BinanceStreamTrade>();
+        private Dictionary<string, BinanceStreamAggregatedTrade> TradeCache = new Dictionary<string, BinanceStreamAggregatedTrade>();
         private Dictionary<string, BinanceStreamKlineData> CandleCache = new Dictionary<string, BinanceStreamKlineData>();
 
         public BinanceAdapter(SubscriptionManager subMgr)
@@ -329,29 +329,37 @@ namespace CryptoRtd
                 return SubscriptionManager.UninitializedValue;
             }
         }
-        private void CacheTrade(BinanceStreamTrade stream)
+        private void CacheTrade(BinanceStreamAggregatedTrade stream)
         {
             var instrument = stream.Symbol;
-            CacheResult(BINANCE_TRADE, instrument, RtdFields.TRADE_ID, stream.TradeId);
+            //CacheResult(BINANCE_TRADE, instrument, RtdFields.TRADE_ID, stream.TradeId);
+            CacheResult(BINANCE_TRADE, instrument, RtdFields.TRADE_ID, stream.AggregatedTradeId);
             CacheResult(BINANCE_TRADE, instrument, RtdFields.PRICE, stream.Price);
             CacheResult(BINANCE_TRADE, instrument, RtdFields.QUANTITY, stream.Quantity);
-            CacheResult(BINANCE_TRADE, instrument, RtdFields.BUYER_ORDER_ID, stream.BuyerOrderId);
-            CacheResult(BINANCE_TRADE, instrument, RtdFields.SELLER_ORDER_ID, stream.SellerOrderId);
+            //CacheResult(BINANCE_TRADE, instrument, RtdFields.BUYER_ORDER_ID, stream.BuyerOrderId);
+            //CacheResult(BINANCE_TRADE, instrument, RtdFields.SELLER_ORDER_ID, stream.SellerOrderId);
+            CacheResult(BINANCE_TRADE, instrument, RtdFields.FIRST_ID, stream.FirstTradeId);
+            CacheResult(BINANCE_TRADE, instrument, RtdFields.LAST_ID, stream.LastTradeId);
+            CacheResult(BINANCE_TRADE, instrument, RtdFields.TRADE_TIME, stream.TradeTime.ToLocalTime());
             CacheResult(BINANCE_TRADE, instrument, RtdFields.BUYER_IS_MAKER, stream.BuyerIsMaker);
             CacheResult(BINANCE_TRADE, instrument, RtdFields.IGNORE, stream.Ignore);
         }
 
-        private object DecodeTrade(BinanceStreamTrade stream, string field)
+        private object DecodeTrade(BinanceStreamAggregatedTrade stream, string field)
         {
             switch (field)
             {
                 case RtdFields.SYMBOL: return stream.Symbol;
-                case RtdFields.TRADE_ID: return stream.TradeId;
+                //case RtdFields.TRADE_ID: return stream.TradeId;
                 case RtdFields.PRICE: return stream.Price;
                 case RtdFields.QUANTITY: return stream.Quantity;
 
-                case RtdFields.BUYER_ORDER_ID: return stream.BuyerOrderId;
-                case RtdFields.SELLER_ORDER_ID: return stream.SellerOrderId;
+                //case RtdFields.BUYER_ORDER_ID: return stream.BuyerOrderId;
+                //case RtdFields.SELLER_ORDER_ID: return stream.SellerOrderId;
+                case RtdFields.FIRST_ID: return stream.FirstTradeId;
+                case RtdFields.LAST_ID: return stream.LastTradeId;
+                case RtdFields.TRADE_TIME: return stream.TradeTime.ToLocalTime();
+
                 case RtdFields.BUYER_IS_MAKER: return stream.BuyerIsMaker;
                 case RtdFields.IGNORE: return stream.Ignore;
             }
@@ -363,7 +371,7 @@ namespace CryptoRtd
 
             if (SubscribedTrade.ContainsKey(key))
             {
-                BinanceStreamTrade stream;
+                BinanceStreamAggregatedTrade stream;
                 if (TradeCache.TryGetValue(key, out stream))
                     return DecodeTrade(stream, field);
                 else
@@ -372,7 +380,7 @@ namespace CryptoRtd
             else
             {
                 SubscribedTrade.Add(key, true);
-                var successSymbol = socketClient.SubscribeToTradesStream (instrument, (BinanceStreamTrade stream) =>
+                var successSymbol = socketClient.SubscribeToAggregatedTradesStream (instrument, (BinanceStreamAggregatedTrade stream) =>
                 {
                     TradeCache[key] = stream;
                     CacheTrade(stream);

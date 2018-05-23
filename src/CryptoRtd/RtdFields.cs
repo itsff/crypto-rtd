@@ -53,12 +53,13 @@ namespace CryptoRtd
         // Trade
         public const string TRADE_ID = "TRADE_ID";
         public const string QUANTITY = "QUANTITY";
+        public const string TRADE_TIME = "TRADE_TIME";
         public const string BUYER_ORDER_ID = "BUYER_ORDER_ID";
         public const string SELLER_ORDER_ID = "SELLER_ORDER_ID";
         public const string BUYER_IS_MAKER = "BUYER_IS_MAKER";
         public const string IGNORE = "IGNORE";
 
-        public static readonly string[] TRADE = { SYMBOL, TRADE_ID, PRICE, QUANTITY, BUYER_ORDER_ID, SELLER_ORDER_ID, BUYER_IS_MAKER, IGNORE };
+        public static readonly string[] TRADE = { SYMBOL, TRADE_ID, TRADE_TIME, PRICE, QUANTITY, BUYER_ORDER_ID, SELLER_ORDER_ID, BUYER_IS_MAKER, IGNORE };
 
         // Candles
         public const string EVENT = "EVENT";
