@@ -38,21 +38,20 @@ namespace CryptoRtd
         {
             _subMgr = subMgr;
 
+            string BINANCE_API_KEY = Environment.GetEnvironmentVariable("BINANCE_API_KEY");
+            string BINANCE_SECRET = Environment.GetEnvironmentVariable("BINANCE_SECRET");
+
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
             BinanceSocketClient.SetDefaultOptions(new BinanceSocketClientOptions()
             {
-            //    ApiCredentials = new CryptoExchange.Net.Authentication.ApiCredentials(
-            //        "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", 
-            //        "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"),
-            //    LogVerbosity = CryptoExchange.Net.Logging.LogVerbosity.Debug,
-            //    LogWriters = { Console.Out }
+                ApiCredentials = new CryptoExchange.Net.Authentication.ApiCredentials(BINANCE_API_KEY, BINANCE_SECRET),
+                //    LogVerbosity = CryptoExchange.Net.Logging.LogVerbosity.Debug,
+                //    LogWriters = { Console.Out }
             });
 
             BinanceClient.SetDefaultOptions(new BinanceClientOptions()
             {
-            //    ApiCredentials = new CryptoExchange.Net.Authentication.ApiCredentials(
-            //        "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", 
-            //        "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"),
+                ApiCredentials = new CryptoExchange.Net.Authentication.ApiCredentials(BINANCE_API_KEY, BINANCE_SECRET),
                 LogVerbosity = CryptoExchange.Net.Logging.LogVerbosity.Debug,
                 LogWriters = { Console.Out }
             });
