@@ -123,24 +123,6 @@
       <HintPath>..\packages\WebSocket4Net.0.15.2\lib\net45\WebSocket4Net.dll</HintPath>
     </Reference>
     <Reference Include="WindowsBase" />
-    <Reference Include="Xceed.Wpf.AvalonDock, Version=3.2.0.0, Culture=neutral, PublicKeyToken=3e4669d2f30244f4, processorArchitecture=MSIL">
-      <HintPath>..\packages\Extended.Wpf.Toolkit.3.2.0\lib\net40\Xceed.Wpf.AvalonDock.dll</HintPath>
-    </Reference>
-    <Reference Include="Xceed.Wpf.AvalonDock.Themes.Aero, Version=3.2.0.0, Culture=neutral, PublicKeyToken=3e4669d2f30244f4, processorArchitecture=MSIL">
-      <HintPath>..\packages\Extended.Wpf.Toolkit.3.2.0\lib\net40\Xceed.Wpf.AvalonDock.Themes.Aero.dll</HintPath>
-    </Reference>
-    <Reference Include="Xceed.Wpf.AvalonDock.Themes.Metro, Version=3.2.0.0, Culture=neutral, PublicKeyToken=3e4669d2f30244f4, processorArchitecture=MSIL">
-      <HintPath>..\packages\Extended.Wpf.Toolkit.3.2.0\lib\net40\Xceed.Wpf.AvalonDock.Themes.Metro.dll</HintPath>
-    </Reference>
-    <Reference Include="Xceed.Wpf.AvalonDock.Themes.VS2010, Version=3.2.0.0, Culture=neutral, PublicKeyToken=3e4669d2f30244f4, processorArchitecture=MSIL">
-      <HintPath>..\packages\Extended.Wpf.Toolkit.3.2.0\lib\net40\Xceed.Wpf.AvalonDock.Themes.VS2010.dll</HintPath>
-    </Reference>
-    <Reference Include="Xceed.Wpf.DataGrid, Version=3.2.0.0, Culture=neutral, PublicKeyToken=3e4669d2f30244f4, processorArchitecture=MSIL">
-      <HintPath>..\packages\Extended.Wpf.Toolkit.3.2.0\lib\net40\Xceed.Wpf.DataGrid.dll</HintPath>
-    </Reference>
-    <Reference Include="Xceed.Wpf.Toolkit, Version=3.2.0.0, Culture=neutral, PublicKeyToken=3e4669d2f30244f4, processorArchitecture=MSIL">
-      <HintPath>..\packages\Extended.Wpf.Toolkit.3.2.0\lib\net40\Xceed.Wpf.Toolkit.dll</HintPath>
-    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="BinanceAdapter.cs" />
@@ -158,12 +140,12 @@
     <None Include="SignatureFile.snk" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\..\OpenSource\Crypto\Binance.Net\Binance.Net\Binance.Net.csproj">
-      <Project>{70938cc2-588d-480a-a0cd-1a5542899964}</Project>
+    <ProjectReference Include="..\..\..\Binance.Net\Binance.Net\Binance.Net.csproj">
+      <Project>{7ad6d984-a32d-41ab-90d6-47de7fec8d19}</Project>
       <Name>Binance.Net</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\..\OpenSource\Crypto\CryptoExchange.Net\CryptoExchange.Net\CryptoExchange.Net.csproj">
-      <Project>{bf0dadaa-f408-4f73-9796-386017ca94d5}</Project>
+    <ProjectReference Include="..\..\..\CryptoExchange.Net\CryptoExchange.Net\CryptoExchange.Net.csproj">
+      <Project>{f3a3b56e-2f2b-425c-a918-12c7bb879971}</Project>
       <Name>CryptoExchange.Net</Name>
     </ProjectReference>
   </ItemGroup>
