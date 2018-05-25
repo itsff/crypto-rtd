@@ -57,7 +57,7 @@ namespace CryptoRtd
             // DispatcherTimer will use COM thread's message pump.
             //
             _timer = new DispatcherTimer();
-            _timer.Interval = TimeSpan.FromSeconds(0.5);
+            _timer.Interval = TimeSpan.FromMilliseconds(350);
             _timer.Tick += TimerElapsed;
             _timer.Start();
 
