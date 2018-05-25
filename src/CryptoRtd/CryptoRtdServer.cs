@@ -19,11 +19,7 @@ namespace CryptoRtd
         // This is the string that names RTD server.
         // Users will use it from Excel: =RTD("crypto",, ....)
         //
-#if RELEASE
         ProgId("crypto")
-#else
-        ProgId("crypto-debug")
-#endif
     ]
     public class CryptoRtdServer : IRtdServer
     {
@@ -323,7 +319,7 @@ namespace CryptoRtd
             TopicId = topicId;
 
             Decimal dec;
-            if ((value is String || value is Newtonsoft.Json.Linq.JValue) && Decimal.TryParse(value.ToString(), out dec))
+            if (Decimal.TryParse(value.ToString(), out dec))
                 Value = dec;
             else 
                 Value = value;

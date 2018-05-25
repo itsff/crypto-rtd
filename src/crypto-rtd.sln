@@ -11,6 +11,10 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CryptoExchange.Net", "..\..
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Binance.Net", "..\..\OpenSource\Crypto\Binance.Net\Binance.Net\Binance.Net.csproj", "{70938CC2-588D-480A-A0CD-1A5542899964}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BinanceMqLoader", "..\..\BinanceMQ\BinanceMQ\BinanceMqLoader.csproj", "{1A54D45F-55BA-492F-8880-CF40A8D0C87B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MqModelA", "..\..\BinanceMQ\MqModelA\MqModelA.csproj", "{54DD4E8C-05C3-465E-A8F4-F9EF38B98982}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,6 +37,14 @@ Global
 		{70938CC2-588D-480A-A0CD-1A5542899964}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{70938CC2-588D-480A-A0CD-1A5542899964}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{70938CC2-588D-480A-A0CD-1A5542899964}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1A54D45F-55BA-492F-8880-CF40A8D0C87B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1A54D45F-55BA-492F-8880-CF40A8D0C87B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1A54D45F-55BA-492F-8880-CF40A8D0C87B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1A54D45F-55BA-492F-8880-CF40A8D0C87B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{54DD4E8C-05C3-465E-A8F4-F9EF38B98982}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{54DD4E8C-05C3-465E-A8F4-F9EF38B98982}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{54DD4E8C-05C3-465E-A8F4-F9EF38B98982}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{54DD4E8C-05C3-465E-A8F4-F9EF38B98982}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

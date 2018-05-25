@@ -511,8 +511,9 @@ namespace CryptoRtd
             var key = instrument;
 
             using (var client = new BinanceClient()) {
-                SubscribedHistoricTrades.Add(key, true);
-                var result = await client.GetHistoricalTradesAsync(instrument, limit);
+                SubscribedHistoricTrades[key] = true;
+                var result = await client.GetHistoricalTradesAsync(instrument, 100);
+                SubscribedHistoricTrades.Remove(key);
 
                 if (result.Success)
                 {
