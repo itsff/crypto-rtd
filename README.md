@@ -22,21 +22,28 @@ to run on Windows 7 machines.
 Once the RTD server has been installed, you can use it from Excel via the RTD macro.
 This is the syntax:
 
-`=RTD("crypto",, "GDAX", instrument, field)`
+`=RTD("crypto",, "BINANCE", instrument, field)`
+`=RTD("crypto",,"BINANCE_DEPTH",instrument, field,depth)`
+`=RTD(progId,,"BINACE_TRADE",instrument, field)`
+`=RTD(progId,,"BINACE_CANDLE",instrument, interval)`   // interval is 0-11
+`=RTD(progId,,"BINACE_HISTORY",instrument)`  // not yet working
 
-*All* currency pairs traded on GDAX are supported, including the main ones:
-* BTC-USD
-* ETH-USD
-* LTC-USD
-* ETH-BTC
-* LTC-BTC
+*All* currency pairs traded on BINANCE are supported, including the main ones:
+* BTCUSDT
+* ETHUSDT
+* LTCUSDT
 
 You can use the following fields:
-* BID - best bid price
-* ASK - best ask price
-* LAST_PRICE - last traded price
-* LAST_SIZE - last traded size
-* LAST_SIDE - last trades side (buy or sell)
+* BINANCE: SYMBOL	LOW	HIGH	CLOSE	OPEN	BID_SIZE	BID	Spread	ASK	ASK_SIZE	VOL	QUOTE_VOL	TRADES	PRICE%	PRICE_CHANGE
+* BINACE_TRADE: SYMBOL	TRADE_ID	PRICE	QUANTITY	BUYER_IS_MAKER	IGNORE	FIRST_ID	LAST_ID	TRADE_TIME
+* BINANCE_DEPTH: BID_DEPTH_SIZE	BID_DEPTH
+* BINANCE_CANDLE: OPEN	HIGH	LOW	CLOSE	OPEN_TIME	CLOSE_TIME	FINAL	QUOTE_VOL	VOL	TAKE_BUY_VOL	TAKE_BUY_QUOTE_VOL	INTERVAL	TRADES	Event	Event_Time	FIRST_ID	LAST_ID
+* BINANCE_HISTORY: PRICE    QUANTITY
+
+Environment Variables: for BINANCE_HISTORY and coming APIs
+* BINANCE_API_KEY=XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+* BINANCE_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
 
 ![Excel screenshot](doc/crypto-rtd-excel.png)
 
