@@ -19,24 +19,28 @@ to run on Windows 7 machines.
 Once the RTD server has been installed, you can use it from Excel via the RTD macro.
 This is the syntax:
 
+* `=RTD("crypto",,"GDAX", instrument, field)`
 * `=RTD("crypto",,"BINANCE", instrument, field)`
 * `=RTD("crypto",,"BINANCE_DEPTH",instrument, field,depth)` // depth is 0-9
-* `=RTD("crypto",,"BINACE_TRADE",instrument, field)`
-* `=RTD("crypto",,"BINACE_CANDLE",instrument, interval)`   // interval is 0-11
-* `=RTD("crypto",,"BINACE_HISTORY",instrument)`  // not yet working
-
-*All* currency pairs traded on BINANCE are supported, including the main ones:
-* BTCUSDT
-* ETHUSDT
-* LTCUSDT
+* `=RTD("crypto",,"BINANCE_TRADE",instrument, field)`
+* `=RTD("crypto",,"BINANCE_CANDLE",instrument, interval)`   // interval is 0-11
+* `=RTD("crypto",,"BINANCE_HISTORY",instrument)`  // not yet working
 
 *All* currency pairs traded on GDAX are supported, including the main ones:
 * BTC-USD
 * ETH-USD
 * LTC-USD
 
+*All* currency pairs traded on BINANCE are supported, including the main ones:
+* BTCUSDT
+* ETHUSDT
+* LTCUSDT
 
-You can use the following fields:
+You can use the following fields for GDAX:
+* BID, ASK, LAST_SIZE, LAST_PRICE, LAST_SIDE
+* high_24h, low_24h, open_24h, volume_24h
+
+You can use the following fields for BINANCE:
 * BINANCE: SYMBOL	LOW	HIGH	CLOSE	OPEN	BID_SIZE	BID	SPREAD	ASK	ASK_SIZE	VOL	QUOTE_VOL	TRADES	PRICE%	PRICE_CHANGE
 * BINANCE_24H: CLOSE	OPEN +++ TODO
 * BINACE_TRADE: SYMBOL	TRADE_ID	PRICE	QUANTITY	BUYER_IS_MAKER	IGNORE	FIRST_ID	LAST_ID	TRADE_TIME
