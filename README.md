@@ -20,7 +20,7 @@ Once the RTD server has been installed, you can use it from Excel via the RTD ma
 This is the syntax:
 
 `=RTD("crypto",,"BINANCE", instrument, field)`
-`=RTD("crypto",,"BINANCE_DEPTH",instrument, field,depth)`
+`=RTD("crypto",,"BINANCE_DEPTH",instrument, field,depth)` // depth is 0-9
 `=RTD("crypto",,"BINACE_TRADE",instrument, field)`
 `=RTD("crypto",,"BINACE_CANDLE",instrument, interval)`   // interval is 0-11
 `=RTD("crypto",,"BINACE_HISTORY",instrument)`  // not yet working
