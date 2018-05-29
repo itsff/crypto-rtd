@@ -101,7 +101,7 @@ namespace CryptoRtd
 
                 case BINANCE_HISTORY:
                     GetHistoricalTradesAsync(instrument, field, num);
-                    return SubscriptionManager.UninitializedValue;
+                    return CacheResult(BINANCE_HISTORY, instrument, field, num, SubscriptionManager.UninitializedValue);
 
                 default:
                     return "Unsupported origin: " + origin;

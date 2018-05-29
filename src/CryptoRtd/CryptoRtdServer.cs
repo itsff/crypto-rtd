@@ -27,12 +27,12 @@ namespace CryptoRtd
         DispatcherTimer _timer;
         readonly SubscriptionManager _subMgr;
 
-
         // Oldie but goodie. WebSocket library that works on .NET 4.0
         GdaxWebSocketClient _socket;
         BinanceAdapter _binanceAdapter;
 
         public const string GDAX = "GDAX";
+        public const string CLOCK = "CLOCK";
 
         public CryptoRtdServer ()
         {
@@ -101,7 +101,21 @@ namespace CryptoRtd
             newValues = true;
 
             // We assume 3 strings: Origin, Instrument, Field
-            if (strings.Length >= 3)
+            if (strings.Length == 1)
+            {
+                string origin = strings.GetValue(0).ToString().ToUpperInvariant();
+                switch (origin)
+                {
+                    case CLOCK:
+                        _clockTopicId = topicId;
+                        _subMgr.Subscribe(topicId, CLOCK);
+                        break;
+
+                    default:
+                        return "Unsupported origin: " + origin;
+                }
+            }
+            else if (strings.Length >= 3)
             {
                 // Crappy COM-style arrays...
                 string origin = strings.GetValue(0).ToString().ToUpperInvariant();         // The Exchange
@@ -117,6 +131,11 @@ namespace CryptoRtd
 
                 switch (origin)
                 {
+                    case CLOCK:
+                        _clockTopicId = topicId;
+                        _subMgr.Subscribe(topicId, CLOCK);
+                        break;
+
                     case GDAX:
                         lock (_subMgr)
                         {
@@ -149,7 +168,7 @@ namespace CryptoRtd
                                     String.Empty,
                                     instrument,
                                     field);
-                            else 
+                            else
                                 _subMgr.Subscribe(
                                     topicId,
                                     origin,
@@ -231,6 +250,7 @@ namespace CryptoRtd
             if (wasMarketDataUpdated)
             {
                 // Notify Excel that Market Data has been updated
+                _subMgr.Set(CLOCK, DateTime.Now.ToLocalTime());
                 _callback.UpdateNotify();
             }
         }
@@ -349,7 +369,13 @@ namespace CryptoRtd
         }
 
         public bool IsDirty { get; private set; }
+        public void Subscribe(int topicId, string origin)
+        {
+            var subInfo = new SubInfo(topicId, origin);
 
+            _subByTopicId[topicId] = subInfo;
+            _subByPath[subInfo.Path] = subInfo;
+        }
         public void Subscribe (int topicId, string origin, string vendor, string instrument, string field)
         {
             var subInfo = new SubInfo(
