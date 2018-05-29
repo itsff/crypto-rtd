@@ -57,7 +57,7 @@ namespace CryptoRtd
             // DispatcherTimer will use COM thread's message pump.
             //
             _timer = new DispatcherTimer();
-            _timer.Interval = TimeSpan.FromMilliseconds(350);
+            _timer.Interval = TimeSpan.FromMilliseconds(33);  // Make this fast
             _timer.Tick += TimerElapsed;
             _timer.Start();
 
@@ -107,7 +107,6 @@ namespace CryptoRtd
                 switch (origin)
                 {
                     case CLOCK:
-                        _clockTopicId = topicId;
                         _subMgr.Subscribe(topicId, CLOCK);
                         break;
 
@@ -132,7 +131,6 @@ namespace CryptoRtd
                 switch (origin)
                 {
                     case CLOCK:
-                        _clockTopicId = topicId;
                         _subMgr.Subscribe(topicId, CLOCK);
                         break;
 
