@@ -326,7 +326,7 @@ namespace CryptoRtd
             TopicId = topicId;
 
             Decimal dec;
-            if (Decimal.TryParse(value.ToString(), out dec))
+            if ((value is String || value is Newtonsoft.Json.Linq.JValue) && Decimal.TryParse(value.ToString(), out dec))
                 Value = dec;
             else 
                 Value = value;
