@@ -202,7 +202,14 @@ namespace CryptoRtd
                 UpdatedValue info = updates[i];
 
                 data[0, i] = info.TopicId;
-                data[1, i] = info.Value;
+                if (info.Value.GetType().IsArray)
+                {
+                    data[1, i] = info.Value.ToString();
+                }
+                else
+                {
+                    data[1, i] = info.Value;
+                }
             }
 
             return data;

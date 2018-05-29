@@ -1,6 +1,7 @@
 ﻿using Binance.Net;
 using Binance.Net.Objects;
 using CryptoExchange.Net;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -338,11 +339,12 @@ namespace CryptoRtd
             else
             {
                 SubscribedDepth.Add(key, true);
-                var successSymbol = socketClient.SubscribeToPartialBookDepthStream(instrument, 10, (BinanceStreamOrderBook stream) =>
-                {
-                    DepthCache[key] = stream;
-                    CacheOrderBook(stream);
-                });
+                Task.Run(() => socketClient.SubscribeToPartialBookDepthStream(instrument, 10, (BinanceStreamOrderBook stream) =>
+                    {
+                        DepthCache[key] = stream;
+                        CacheOrderBook(stream);
+                    })
+                );
                 return SubscriptionManager.UninitializedValue;
             }
         }
@@ -397,11 +399,12 @@ namespace CryptoRtd
             else
             {
                 SubscribedTrade.Add(key, true);
-                var successSymbol = socketClient.SubscribeToAggregatedTradesStream (instrument, (BinanceStreamAggregatedTrade stream) =>
-                {
-                    TradeCache[key] = stream;
-                    CacheTrade(stream);
-                });
+                Task.Run(()=> socketClient.SubscribeToAggregatedTradesStream (instrument, (BinanceStreamAggregatedTrade stream) =>
+                    {
+                        TradeCache[key] = stream;
+                        CacheTrade(stream);
+                    })
+                );
                 return SubscriptionManager.UninitializedValue;
             }
         }
@@ -478,11 +481,11 @@ namespace CryptoRtd
                 KlineInterval klineInterval = (KlineInterval)interval;
 
                 SubscribedCandle.Add(key, true);
-                var successSymbol = socketClient.SubscribeToKlineStream(instrument, klineInterval, (BinanceStreamKlineData stream) =>
-                {
-                    CandleCache[key] = stream;
-                    CacheCandle(stream, interval);
-                });
+                Task.Run(() => socketClient.SubscribeToKlineStream(instrument, klineInterval, (stream) =>
+                   {
+                       CandleCache[key] = stream;
+                       CacheCandle(stream, interval);
+                   }));
                 return SubscriptionManager.UninitializedValue;
             }
         }
@@ -495,56 +498,73 @@ namespace CryptoRtd
                 BinanceRecentTrade[] data;
                 if (HistoricTradesCache.TryGetValue(key,out data))
                 {
-                    return DecodeHistoricTrade(data[0], field);
+                    return DecodeHistoricTrade(instrument, data, field);
                 }
-                else 
-                    return SubscriptionManager.UninitializedValue;
-            } 
+                else
+                    return CacheResult(BINANCE_HISTORY, instrument, field, SubscriptionManager.UninitializedValue);
+            }
             else
             {
                 GetHistoricalTradesAsync(instrument, field, limit);
-                return SubscriptionManager.UninitializedValue;
+                return CacheResult(BINANCE_HISTORY,instrument,field, SubscriptionManager.UninitializedValue);
             }
         }
-        private async void GetHistoricalTradesAsync(string instrument, string field, int limit)
+        private void GetHistoricalTradesAsync(string instrument, string field, int limit)
         {
             var key = instrument;
+            SubscribedHistoricTrades[key] = true;
 
-            using (var client = new BinanceClient()) {
-                SubscribedHistoricTrades[key] = true;
-                var result = await client.GetHistoricalTradesAsync(instrument, 100);
-                SubscribedHistoricTrades.Remove(key);
+            Task.Run( () =>
+                {
+                    using (var client = new BinanceClient())
+                    {
+                        var result = client.GetHistoricalTrades(instrument, limit);
+                        SubscribedHistoricTrades.Remove(key);
 
-                if (result.Success)
-                {
-                    HistoricTradesCache[key] = result.Data;
-                    CacheHistoricTrades(instrument, field, result.Data);
+                        if (result.Success)
+                        {
+                            HistoricTradesCache[key] = result.Data;
+                            CacheHistoricTrades(instrument, field, result.Data);
+                        }
+                        else
+                        {
+                            CacheResult(BINANCE_HISTORY, instrument, field, limit, result.Error.Message);
+                        }
+                    }
                 }
-                else
-                {
-                    CacheResult(BINANCE_HISTORY,instrument,field, result.Error.Message);
-                }
-            }
+            );
         }
 
         private void CacheHistoricTrades(string instrument, string field, BinanceRecentTrade[] data)
         {
-            CacheResult(BINANCE_HISTORY, instrument, field, DecodeHistoricTrade(data[0], field));
+            CacheResult(BINANCE_HISTORY, instrument, field, data.Length, DecodeHistoricTrade(instrument, data, field));
         }
 
-        private object DecodeHistoricTrade(BinanceRecentTrade data, string field)
+        private object DecodeHistoricTrade(string instrument, BinanceRecentTrade[] arr, string field)
         {
-            switch(field)
+            object[,] result = new object[arr.Length + 1,7];
+
+            result[0, 0] = RtdFields.SYMBOL;
+            result[0, 1] = RtdFields.TRADE_ID;
+            result[0, 2] = RtdFields.PRICE;
+            result[0, 3] = RtdFields.QUANTITY;
+            result[0, 4] = RtdFields.TRADE_TIME;
+            result[0, 5] = RtdFields.IS_BEST_MATCH;
+            result[0, 6] = RtdFields.BUYER_IS_MAKER;
+
+            for (int i = 1; i < arr.Length+1; i++)
             {
-                case RtdFields.TRADE_ID: return data.Id;
-                case RtdFields.PRICE: return data.Price;
-                case RtdFields.QUANTITY: return data.Quantity;
-                case RtdFields.TRADE_TIME: return data.Time.ToLocalTime();
-                case RtdFields.IS_BEST_MATCH: return data.IsBestMatch;
-                case RtdFields.BUYER_IS_MAKER: return data.IsBuyerMaker;
-                default:
-                    return SubscriptionManager.UnsupportedField;
+                var data = arr[i-1];
+                result[i, 0] = instrument;
+                result[i, 1] = data.Id;
+                result[i, 2] = data.Price;
+                result[i, 3] = data.Quantity;
+                result[i, 4] = data.Time.ToLocalTime();
+                result[i, 5] = data.IsBestMatch;
+                result[i, 6] = data.IsBuyerMaker;
+
             }
+            return JsonConvert.SerializeObject(result);
         }
     }
 }
