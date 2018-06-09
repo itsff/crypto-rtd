@@ -37,7 +37,6 @@ namespace CryptoRtd
         public CryptoRtdServer ()
         {
             _subMgr = new SubscriptionManager();
-            _socket = new GdaxWebSocketClient(new Uri("wss://ws-feed.gdax.com"));
 
             _binanceAdapter = new BinanceAdapter(_subMgr);
         }
@@ -50,22 +49,21 @@ namespace CryptoRtd
         {
             _callback = callback;
 
-            //
             // We will throttle out updates so that Excel can keep up.
             // It is also important to invoke the Excel callback notify
             // function from the COM thread. System.Windows.Threading' 
             // DispatcherTimer will use COM thread's message pump.
-            //
             _timer = new DispatcherTimer();
             _timer.Interval = TimeSpan.FromMilliseconds(33);  // Make this fast
             _timer.Tick += TimerElapsed;
             _timer.Start();
 
-            _socket.Start();
-            _socket.MessageReceived += OnWebSocketMessageReceived;
-
-            //_binanceViewModel.Init();
-
+            // moved from constructor as this is a blocking call when network is down
+            Task.Run(() => {
+                _socket = new GdaxWebSocketClient(new Uri("wss://ws-feed.gdax.com"));
+                _socket.Start();
+                _socket.MessageReceived += OnWebSocketMessageReceived;
+            });
             return 1;
         }
 
@@ -85,8 +83,6 @@ namespace CryptoRtd
                 _socket.Disconnect();
                 _socket = null;
             }
-
-            //_binanceViewModel = null;
         }
 
         //
@@ -98,91 +94,98 @@ namespace CryptoRtd
                                        ref Array strings,
                                        ref bool newValues)
         {
-            newValues = true;
-
-            // We assume 3 strings: Origin, Instrument, Field
-            if (strings.Length == 1)
+            try
             {
-                string origin = strings.GetValue(0).ToString().ToUpperInvariant();
-                switch (origin)
-                {
-                    case CLOCK:
-                        _subMgr.Subscribe(topicId, CLOCK);
-                        break;
+                newValues = true;
 
-                    default:
-                        return "Unsupported origin: " + origin;
+                // We assume 3 strings: Origin, Instrument, Field
+                if (strings.Length == 1)
+                {
+                    string origin = strings.GetValue(0).ToString().ToUpperInvariant();
+                    switch (origin)
+                    {
+                        case CLOCK:
+                            _subMgr.Subscribe(topicId, CLOCK);
+                            break;
+
+                        default:
+                            return "Unsupported origin: " + origin;
+                    }
                 }
-            }
-            else if (strings.Length >= 3)
-            {
-                // Crappy COM-style arrays...
-                string origin = strings.GetValue(0).ToString().ToUpperInvariant();         // The Exchange
-                string instrument = strings.GetValue(1).ToString().ToUpperInvariant();
-                string field = strings.GetValue(2).ToString().ToUpperInvariant();
-
-                //if (field.Equals("ALL_FIELDS"))
-                //{
-                //    Array comArray = new object[1,RtdFields.ALL_FIELDS.Length];
-                //    for (int i = 0; i < RtdFields.ALL_FIELDS.Length; i++)
-                //        comArray.SetValue(RtdFields.ALL_FIELDS[i], 0,i);
-                //}
-
-                switch (origin)
+                else if (strings.Length >= 3)
                 {
-                    case CLOCK:
-                        _subMgr.Subscribe(topicId, CLOCK);
-                        break;
+                    // Crappy COM-style arrays...
+                    string origin = strings.GetValue(0).ToString().ToUpperInvariant();         // The Exchange
+                    string instrument = strings.GetValue(1).ToString().ToUpperInvariant();
+                    string field = strings.GetValue(2).ToString().ToUpperInvariant();
 
-                    case GDAX:
-                        lock (_subMgr)
-                        {
-                            // Let's use Empty strings for now
-                            _subMgr.Subscribe(
-                                topicId,
-                                origin,
-                                String.Empty,
-                                instrument,
-                                field);
-                        }
-                        SubscribeGdaxWebSocketToTicker(instrument);
-                        break;
-                    case BinanceAdapter.BINANCE:
-                    case BinanceAdapter.BINANCE_24H:
-                    case BinanceAdapter.BINANCE_DEPTH:
-                    case BinanceAdapter.BINANCE_CANDLE:
-                    case BinanceAdapter.BINANCE_TRADE:
-                    case BinanceAdapter.BINANCE_HISTORY:
-                        int depth = -1;
-                        if (strings.Length > 3)
-                            Int32.TryParse(strings.GetValue(3).ToString(), out depth);
+                    //if (field.Equals("ALL_FIELDS"))
+                    //{
+                    //    Array comArray = new object[1,RtdFields.ALL_FIELDS.Length];
+                    //    for (int i = 0; i < RtdFields.ALL_FIELDS.Length; i++)
+                    //        comArray.SetValue(RtdFields.ALL_FIELDS[i], 0,i);
+                    //}
 
-                        lock (_subMgr)
-                        {
-                            if (depth < 0)
+                    switch (origin)
+                    {
+                        case CLOCK:
+                            _subMgr.Subscribe(topicId, CLOCK);
+                            break;
+
+                        case GDAX:
+                            lock (_subMgr)
+                            {
+                                // Let's use Empty strings for now
                                 _subMgr.Subscribe(
                                     topicId,
                                     origin,
                                     String.Empty,
                                     instrument,
                                     field);
-                            else
-                                _subMgr.Subscribe(
-                                    topicId,
-                                    origin,
-                                    String.Empty,
-                                    instrument,
-                                    field,
-                                    depth);
-                        }
-                        return _binanceAdapter.Subscribe(origin, instrument, field, depth);
-                    default:
-                        return "Unsupported origin: " + origin;
-                }
-                return SubscriptionManager.UninitializedValue;
-            }
+                            }
+                            Task.Run(() => SubscribeGdaxWebSocketToTicker(topicId,instrument));  // dont block excel
+                            break;
 
-            return "ERROR: Expected: origin, vendor, instrument, field, [depth]";
+                        case BinanceAdapter.BINANCE:
+                        case BinanceAdapter.BINANCE_24H:
+                        case BinanceAdapter.BINANCE_DEPTH:
+                        case BinanceAdapter.BINANCE_CANDLE:
+                        case BinanceAdapter.BINANCE_TRADE:
+                        case BinanceAdapter.BINANCE_HISTORY:
+                            int depth = -1;
+                            if (strings.Length > 3)
+                                Int32.TryParse(strings.GetValue(3).ToString(), out depth);
+
+                            lock (_subMgr)
+                            {
+                                if (depth < 0)
+                                    _subMgr.Subscribe(
+                                        topicId,
+                                        origin,
+                                        String.Empty,
+                                        instrument,
+                                        field);
+                                else
+                                    _subMgr.Subscribe(
+                                        topicId,
+                                        origin,
+                                        String.Empty,
+                                        instrument,
+                                        field,
+                                        depth);
+                            }
+                            return _binanceAdapter.Subscribe(origin, instrument, field, depth);
+                        default:
+                            return "ERROR: Unsupported origin: " + origin;
+                    }
+                    return SubscriptionManager.UninitializedValue;
+                }
+                return "ERROR: Expected: origin, vendor, instrument, field, [depth]";
+            }
+            catch (Exception ex)
+            {
+                return ex.Message;
+            }
         }
 
         //
@@ -320,9 +323,16 @@ namespace CryptoRtd
             }
         }
 
-        private void SubscribeGdaxWebSocketToTicker (string instrument)
+        private void SubscribeGdaxWebSocketToTicker (int topicId, string instrument)
         {
-            _socket.SubscribeTickers(instrument);
+            try
+            {
+                _socket.SubscribeTickers(instrument);
+            }
+            catch (Exception e)
+            {
+                _subMgr.Set(topicId, e.Message);
+            }
         }
         List<UpdatedValue> GetUpdatedValues ()
         {
@@ -343,11 +353,23 @@ namespace CryptoRtd
         {
             TopicId = topicId;
 
-            Decimal dec;
-            if ((value is String || value is Newtonsoft.Json.Linq.JValue) && Decimal.TryParse(value.ToString(), out dec))
-                Value = dec;
-            else 
+            if (value is String || value is Newtonsoft.Json.Linq.JValue)
+            {
+                if (Decimal.TryParse(value.ToString(), out Decimal dec))
+                    Value = dec;
+                else
+                    Value = value;
+
+                if (dec > 1500_000_000_000 && dec < 1600_000_000_000)
+                    Value = DateTimeOffset
+                        .FromUnixTimeMilliseconds(Decimal.ToInt64(dec))
+                        .DateTime
+                        .ToLocalTime();
+            }
+            else
+            {
                 Value = value;
+            }
         }
     }
 
@@ -374,7 +396,7 @@ namespace CryptoRtd
             _subByTopicId[topicId] = subInfo;
             _subByPath[subInfo.Path] = subInfo;
         }
-        public void Subscribe (int topicId, string origin, string vendor, string instrument, string field)
+        public void Subscribe(int topicId, string origin, string vendor, string instrument, string field)
         {
             var subInfo = new SubInfo(
                 topicId,
@@ -434,6 +456,19 @@ namespace CryptoRtd
                 }
             }
         }
+        public void Set(int topicId, object value)
+        {
+            SubInfo subInfo;
+            if (_subByTopicId.TryGetValue(topicId, out subInfo))
+            {
+                if (value != subInfo.Value)
+                {
+                    subInfo.Value = value;
+                    IsDirty = true;
+                }
+            }
+        }
+
         public static string FormatPath(string origin, string vendor, string instrument, string field)
         {
             return string.Format("{0}/{1}/{2}/{3}",
