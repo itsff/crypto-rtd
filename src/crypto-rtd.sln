@@ -8,6 +8,17 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TestApp", "TestApp\TestApp.csproj", "{34E6D830-BD3F-4A32-9DDD-5EE1C5CBB6A2}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{F204AB74-D6C3-4335-92F8-84D58576F909}"
+	ProjectSection(SolutionItems) = preProject
+		..\build.cmd = ..\build.cmd
+		..\doc\crypto-rtd-excel.png = ..\doc\crypto-rtd-excel.png
+		..\doc\crypto.xlsx = ..\doc\crypto.xlsx
+		..\doc\crypto2.xlsx = ..\doc\crypto2.xlsx
+		..\LICENSE = ..\LICENSE
+		..\README.md = ..\README.md
+		..\register.cmd = ..\register.cmd
+		..\register.debug.cmd = ..\register.debug.cmd
+		..\doc\test-history.xlsm = ..\doc\test-history.xlsm
+	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Binance.Net", "..\..\Binance.Net\Binance.Net\Binance.Net.csproj", "{7AD6D984-A32D-41AB-90D6-47DE7FEC8D19}"
 EndProject

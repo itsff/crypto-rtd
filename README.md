@@ -23,7 +23,7 @@ This is the syntax:
 * `=RTD("crypto",,"BINANCE", instrument, field)`
 * `=RTD("crypto",,"BINANCE_DEPTH",instrument, field,depth)` // depth is 0-9
 * `=RTD("crypto",,"BINANCE_TRADE",instrument, field)`
-* `=RTD("crypto",,"BINANCE_CANDLE",instrument, interval)`   // interval is 0-11
+* `=RTD("crypto",,"BINANCE_CANDLE",instrument, interval, field)`   // interval is 0-11
 * `=RTD("crypto",,"BINANCE_HISTORY",instrument)`  // not yet working
 
 *All* currency pairs traded on GDAX are supported, including the main ones:
