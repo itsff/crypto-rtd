@@ -13,7 +13,8 @@ namespace CryptoRtd
         // Price
         public const string PRICE = "PRICE";
         public const string SYMBOL = "SYMBOL";
-        public static readonly string[] PRICE_FIELDS = { PRICE, SYMBOL };
+        public const string DRIFT = "DRIFT";
+        public static readonly string[] PRICE_FIELDS = { PRICE, SYMBOL, DRIFT };
 
         // 24Price
         public const string FIRST_ID = "FIRST_ID";

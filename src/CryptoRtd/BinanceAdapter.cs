@@ -84,7 +84,10 @@ namespace CryptoRtd
             switch (origin)
             {
                 case BINANCE:
-                    return SubscribeTick(instrument, field);
+                    if (field.Equals(RtdFields.DRIFT))
+                        return SubscribeDrift();
+                    else 
+                        return SubscribeTick(instrument, field);
 
                 case BINANCE_24H:
                     Get24HPriceAsync(instrument, field);
@@ -135,6 +138,19 @@ namespace CryptoRtd
                 }
                 else
                     CacheResult(BINANCE, instrument, field, result.Error.Message);
+            }
+        }
+
+        private TimeSpan SubscribeDrift()
+        {
+            using (var client = new BinanceClient())
+            {
+                DateTime server = client.GetServerTime().Data.ToLocalTime();
+                DateTime after = DateTime.Now.ToLocalTime();
+                TimeSpan drift = after.Subtract(server);
+                CacheResult(BINANCE, null, RtdFields.DRIFT, drift);
+
+                return drift;
             }
         }
 
@@ -238,7 +254,7 @@ namespace CryptoRtd
 
         private object SubscribeTick(string instrument, string field)
         {
-            var key = instrument;// + "|" + field;
+            var key = instrument;
 
             if (SubscribedTick.ContainsKey(key)) { 
 
@@ -259,7 +275,7 @@ namespace CryptoRtd
                 return SubscriptionManager.UninitializedValue;
             }
         }
-
+        // Order Book
         private void CacheOrderBook(BinanceStreamOrderBook stream)
         {
             var instrument = stream.Symbol;
@@ -289,7 +305,6 @@ namespace CryptoRtd
             //    CacheResult(BINANCE, instrument, RtdFields.ASK_DEPTH_SIZE, depth, SubscriptionManager.UninitializedValue);
             //}
         }
-
         private object DecodeOrderBook(BinanceStreamOrderBook stream, string field, int depth)
         {
             int askCount = stream.Asks.Count;
@@ -323,7 +338,6 @@ namespace CryptoRtd
             }
             return SubscriptionManager.UninitializedValue;
         }
-
         private object SubscribeOrderBook(string instrument, string field, int depth)
         {
             var key = instrument;// + "|" + field;
@@ -348,6 +362,7 @@ namespace CryptoRtd
                 return SubscriptionManager.UninitializedValue;
             }
         }
+        // Trade
         private void CacheTrade(BinanceStreamAggregatedTrade stream)
         {
             var instrument = stream.Symbol;
@@ -363,7 +378,6 @@ namespace CryptoRtd
             CacheResult(BINANCE_TRADE, instrument, RtdFields.BUYER_IS_MAKER, stream.BuyerIsMaker);
             CacheResult(BINANCE_TRADE, instrument, RtdFields.IGNORE, stream.Ignore);
         }
-
         private object DecodeTrade(BinanceStreamAggregatedTrade stream, string field)
         {
             switch (field)
@@ -434,7 +448,6 @@ namespace CryptoRtd
             CacheResult(BINANCE_CANDLE, instrument, RtdFields.TAKE_BUY_VOL, interval, data.TakerBuyBaseAssetVolume);
             CacheResult(BINANCE_CANDLE, instrument, RtdFields.TAKE_BUY_QUOTE_VOL, interval, data.TakerBuyQuoteAssetVolume);
         }
-
         private object DecodeCandle(BinanceStreamKlineData stream, string field)
         {
             var data = stream.Data;
@@ -534,7 +547,6 @@ namespace CryptoRtd
                 }
             );
         }
-
         private void CacheHistoricTrades(string instrument, string field, BinanceRecentTrade[] data)
         {
             CacheResult(BINANCE_HISTORY, instrument, field, data.Length, DecodeHistoricTrade(instrument, data, field));
