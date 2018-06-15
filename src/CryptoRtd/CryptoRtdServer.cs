@@ -14,11 +14,8 @@ namespace CryptoRtd
 {
     [
         Guid("982325F9-B1F3-4D12-9618-76A1C8B950B2"),
-
-        //
         // This is the string that names RTD server.
         // Users will use it from Excel: =RTD("crypto",, ....)
-        //
         ProgId("crypto")
     ]
     public class CryptoRtdServer : IRtdServer
@@ -136,12 +133,7 @@ namespace CryptoRtd
                             lock (_subMgr)
                             {
                                 // Let's use Empty strings for now
-                                _subMgr.Subscribe(
-                                    topicId,
-                                    origin,
-                                    String.Empty,
-                                    instrument,
-                                    field);
+                                _subMgr.Subscribe(topicId,origin,String.Empty,instrument,field);
                             }
                             Task.Run(() => SubscribeGdaxWebSocketToTicker(topicId,instrument));  // dont block excel
                             break;
@@ -159,20 +151,9 @@ namespace CryptoRtd
                             lock (_subMgr)
                             {
                                 if (depth < 0)
-                                    _subMgr.Subscribe(
-                                        topicId,
-                                        origin,
-                                        String.Empty,
-                                        instrument,
-                                        field);
+                                    _subMgr.Subscribe(topicId,origin,String.Empty,instrument,field);
                                 else
-                                    _subMgr.Subscribe(
-                                        topicId,
-                                        origin,
-                                        String.Empty,
-                                        instrument,
-                                        field,
-                                        depth);
+                                    _subMgr.Subscribe(topicId,origin,String.Empty,instrument,field,depth);
                             }
                             return _binanceAdapter.Subscribe(origin, instrument, field, depth);
                         default:
@@ -217,21 +198,23 @@ namespace CryptoRtd
 
             object[,] data = new object[2, topicCount];
 
-            for (int i = 0; i < topicCount; ++i)
+            int i = 0;
+            foreach (var info in updates)
             {
-                UpdatedValue info = updates[i];
-
                 data[0, i] = info.TopicId;
+                data[1, i] = info.Value;
+
                 if (info.Value.GetType().IsArray)
                 {
-                    data[1, i] = info.Value.ToString();
+                    data[1, i] = info.Value.ToString();  // RTD Does not supprt arrays, so pass a string
                 }
                 else
                 {
                     data[1, i] = info.Value;
                 }
-            }
 
+                i++;
+            }
             return data;
         }
         
@@ -260,61 +243,20 @@ namespace CryptoRtd
         {
             // Assume the incoming string represents a JSON message.
             // Parse it, and access it via "dynamic" variable (no ["field"] and casts necessary).
-
             dynamic jobj = e.Message;
 
             if (jobj.type == "ticker")
             {
                 string prod = jobj.product_id;
-                string bid = jobj.best_bid;
-                string ask = jobj.best_ask;
-                string ltp = jobj.price;
-                string ltq = jobj.last_size;
-                string side = jobj.side;
                 string origin = GDAX;
 
                 lock (_subMgr)
                 {
-                    _subMgr.Set(
-                        SubscriptionManager.FormatPath(
-                            origin: origin,
-                            vendor: String.Empty,
-                            instrument: prod,
-                            field: "BID"),
-                        bid);
-
-                    _subMgr.Set(
-                        SubscriptionManager.FormatPath(
-                            origin: origin,
-                            vendor: String.Empty,
-                            instrument: prod,
-                            field: "ASK"),
-                        ask);
-
-                    _subMgr.Set(
-                        SubscriptionManager.FormatPath(
-                            origin: origin,
-                            vendor: String.Empty,
-                            instrument: prod,
-                            field: "LAST_SIZE"),
-                        ltq);
-
-                    _subMgr.Set(
-                        SubscriptionManager.FormatPath(
-                            origin: origin,
-                            vendor: String.Empty,
-                            instrument: prod,
-                            field: "LAST_PRICE"),
-                        ltp);
-                    
-                    _subMgr.Set(
-                        SubscriptionManager.FormatPath(
-                            origin: origin,
-                            vendor: String.Empty,
-                            instrument: prod,
-                            field: "LAST_SIDE"),
-                        side);
-
+                    _subMgr.Set(SubscriptionManager.FormatPath(origin, String.Empty, prod, "BID"),jobj.best_bid);
+                    _subMgr.Set(SubscriptionManager.FormatPath(origin, String.Empty, prod, "ASK"),jobj.best_ask);
+                    _subMgr.Set(SubscriptionManager.FormatPath(origin, String.Empty, prod, "LAST_SIZE"),jobj.last_size);
+                    _subMgr.Set(SubscriptionManager.FormatPath(origin, String.Empty, prod, "LAST_PRICE"),jobj.price);
+                    _subMgr.Set(SubscriptionManager.FormatPath(origin, String.Empty, prod, "LAST_SIDE"),jobj.side);
                     _subMgr.Set(SubscriptionManager.FormatPath(origin, String.Empty, prod, "high_24h"), jobj.high_24h);
                     _subMgr.Set(SubscriptionManager.FormatPath(origin, String.Empty, prod, "low_24h"), jobj.low_24h);
                     _subMgr.Set(SubscriptionManager.FormatPath(origin, String.Empty, prod, "open_24h"), jobj.open_24h);
