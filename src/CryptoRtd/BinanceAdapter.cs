@@ -60,6 +60,11 @@ namespace CryptoRtd
             socketClient = new BinanceSocketClient();
         }
 
+        internal void UnsubscribeAllStreams()
+        {
+            socketClient.UnsubscribeAllStreams();
+        }
+
         private object CacheResult(string origin, string instrument, string field, object value)
         {
             lock (_subMgr)

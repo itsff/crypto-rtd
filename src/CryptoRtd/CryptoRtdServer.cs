@@ -80,6 +80,11 @@ namespace CryptoRtd
                 _socket.Disconnect();
                 _socket = null;
             }
+            if (_binanceAdapter != null)
+            {
+                _binanceAdapter.UnsubscribeAllStreams();
+                _binanceAdapter = null;
+            }
         }
 
         //
