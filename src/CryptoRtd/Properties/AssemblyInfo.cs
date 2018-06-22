@@ -5,9 +5,9 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("GdaxRtdServer")]
-[assembly: AssemblyProduct("GdaxRtdServer")]
-[assembly: AssemblyCopyright("Copyright ©  2017 Filip Frącz")]
+[assembly: AssemblyTitle("Crypto RTD Server")]
+[assembly: AssemblyProduct("Crypto RTD Server")]
+[assembly: AssemblyCopyright("Copyright ©  2017 Filip Frącz, © 2018 Marc Deveaux")]
 
 [assembly: ComVisible(true)]
 
