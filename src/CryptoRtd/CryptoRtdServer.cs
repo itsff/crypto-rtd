@@ -328,14 +328,21 @@ namespace CryptoRtd
 
         readonly Dictionary<string, SubInfo> _subByPath;
         readonly Dictionary<int, SubInfo> _subByTopicId;
+        readonly Dictionary<int, SubInfo> _dirtyMap;
 
         public SubscriptionManager ()
         {
             _subByPath = new Dictionary<string, SubInfo>();
             _subByTopicId = new Dictionary<int, SubInfo>();
+            _dirtyMap = new Dictionary<int, SubInfo>();
         }
 
-        public bool IsDirty { get; private set; }
+        public bool IsDirty {
+            get
+            {
+                return _dirtyMap.Count > 0;
+            }
+        }
         public void Subscribe(int topicId, string origin)
         {
             var subInfo = new SubInfo(topicId, origin);
@@ -376,17 +383,14 @@ namespace CryptoRtd
         {
             var updated = new List<UpdatedValue>(_subByTopicId.Count);
 
-            // For simplicity, let's just do a linear scan
-            foreach (var subInfo in _subByTopicId.Values)
+            lock (_dirtyMap)
             {
-                if (subInfo.IsDirty)
+                foreach (var subInfo in _dirtyMap.Values)
                 {
                     updated.Add(new UpdatedValue(subInfo.TopicId, subInfo.Value));
-                    subInfo.IsDirty = false;
                 }
+                _dirtyMap.Clear();
             }
-
-            IsDirty = false;
 
             return updated;
         }
@@ -399,7 +403,8 @@ namespace CryptoRtd
                 if (value != subInfo.Value)
                 {
                     subInfo.Value = value;
-                    IsDirty = true;
+                    lock (_dirtyMap)
+                        _dirtyMap[subInfo.TopicId] = subInfo;
                 }
             }
         }
@@ -411,7 +416,8 @@ namespace CryptoRtd
                 if (value != subInfo.Value)
                 {
                     subInfo.Value = value;
-                    IsDirty = true;
+                    lock(_dirtyMap)
+                        _dirtyMap[subInfo.TopicId] = subInfo;
                 }
             }
         }
