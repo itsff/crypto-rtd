@@ -120,7 +120,7 @@ namespace CryptoRtd
                     switch(origin)
                     {
                         case BinanceAdapter.BINANCE:
-                            return _binanceAdapter.SubscribeStats(stat);
+                            return _binanceAdapter.QueryInfo(stat);
                     }
                     return "Unsupported origin: " + origin;
                 }
@@ -159,18 +159,11 @@ namespace CryptoRtd
                             if (strings.Length > 3)
                                 Int32.TryParse(strings.GetValue(3).ToString(), out depth);
 
-                            lock (_subMgr)
-                            {
-                                if (depth < 0)
-                                    _subMgr.Subscribe(topicId,origin,String.Empty,instrument,field);
-                                else
-                                    _subMgr.Subscribe(topicId,origin,String.Empty,instrument,field,depth);
-                            }
-                            return _binanceAdapter.Subscribe(origin, instrument, field, depth);
+                            return _binanceAdapter.Subscribe(topicId, origin, instrument, field, depth);
                         default:
                             return "ERROR: Unsupported origin: " + origin;
                     }
-                    return SubscriptionManager.UninitializedValue;
+                    //return SubscriptionManager.UninitializedValue;
                 }
                 return "ERROR: Expected: origin, vendor, instrument, field, [depth]";
             }
@@ -263,15 +256,15 @@ namespace CryptoRtd
 
                 lock (_subMgr)
                 {
-                    _subMgr.Set(SubscriptionManager.FormatPath(origin, String.Empty, prod, "BID"),jobj.best_bid);
-                    _subMgr.Set(SubscriptionManager.FormatPath(origin, String.Empty, prod, "ASK"),jobj.best_ask);
-                    _subMgr.Set(SubscriptionManager.FormatPath(origin, String.Empty, prod, "LAST_SIZE"),jobj.last_size);
+                    _subMgr.Set(SubscriptionManager.FormatPath(origin, String.Empty, prod, RtdFields.BID),jobj.best_bid);
+                    _subMgr.Set(SubscriptionManager.FormatPath(origin, String.Empty, prod, RtdFields.ASK),jobj.best_ask);
+                    _subMgr.Set(SubscriptionManager.FormatPath(origin, String.Empty, prod, RtdFields.LAST_SIZE),jobj.last_size);
                     _subMgr.Set(SubscriptionManager.FormatPath(origin, String.Empty, prod, "LAST_PRICE"),jobj.price);
                     _subMgr.Set(SubscriptionManager.FormatPath(origin, String.Empty, prod, "LAST_SIDE"),jobj.side);
-                    _subMgr.Set(SubscriptionManager.FormatPath(origin, String.Empty, prod, "high_24h"), jobj.high_24h);
-                    _subMgr.Set(SubscriptionManager.FormatPath(origin, String.Empty, prod, "low_24h"), jobj.low_24h);
-                    _subMgr.Set(SubscriptionManager.FormatPath(origin, String.Empty, prod, "open_24h"), jobj.open_24h);
-                    _subMgr.Set(SubscriptionManager.FormatPath(origin, String.Empty, prod, "volume_24h"), jobj.volume_24h);
+                    _subMgr.Set(SubscriptionManager.FormatPath(origin, String.Empty, prod, "HIGH_24H"), jobj.high_24h);
+                    _subMgr.Set(SubscriptionManager.FormatPath(origin, String.Empty, prod, "LOW_24H"), jobj.low_24h);
+                    _subMgr.Set(SubscriptionManager.FormatPath(origin, String.Empty, prod, "OPEN_24H"), jobj.open_24h);
+                    _subMgr.Set(SubscriptionManager.FormatPath(origin, String.Empty, prod, "VOLUME_24H"), jobj.volume_24h);
                 }
             }
         }
@@ -358,24 +351,26 @@ namespace CryptoRtd
         }
         public void Subscribe(int topicId, string origin, string vendor, string instrument, string field)
         {
-            var subInfo = new SubInfo(
-                topicId,
-                FormatPath(origin, vendor, instrument, field));
+            var path = FormatPath(origin, vendor, instrument, field);
+            if (_subByPath.TryGetValue(path, out SubInfo subInfo))
+                subInfo.TopicId = topicId;
+            else
+                subInfo = new SubInfo(topicId, path);
 
             _subByTopicId[topicId] = subInfo;
             _subByPath[subInfo.Path] = subInfo;
         }
         public void Subscribe(int topicId, string origin, string vendor, string instrument, string field, int depth)
         {
-            var subInfo = new SubInfo(
-                topicId,
-                FormatPath(origin, vendor, instrument, field, depth));
+            var path = FormatPath(origin, vendor, instrument, field, depth);
+            if (!_subByTopicId.TryGetValue(topicId, out SubInfo subInfo))
+                subInfo = new SubInfo(topicId, path);
 
             _subByTopicId[topicId] = subInfo;
             _subByPath[subInfo.Path] = subInfo;
         }
 
-        public void Unsubscribe (int topicId)
+        public void Unsubscribe(int topicId)
         {
             SubInfo subInfo;
             if (_subByTopicId.TryGetValue(topicId, out subInfo))
@@ -427,7 +422,23 @@ namespace CryptoRtd
                 }
             }
         }
-
+        public void PreSet(string path, object value)
+        {
+            SubInfo subInfo;
+            if (_subByPath.TryGetValue(path, out subInfo))
+            {
+                if (value != subInfo.Value)
+                {
+                    subInfo.Value = value;
+                    lock (_dirtyMap)
+                        _dirtyMap[subInfo.TopicId] = subInfo;
+                }
+            }
+            else
+            {
+                _subByPath[path] = new SubInfo(path, value);
+            }
+        }
         public static string FormatPath(string origin, string vendor, string instrument, string field)
         {
             return string.Format("{0}/{1}/{2}/{3}",
@@ -445,9 +456,15 @@ namespace CryptoRtd
                                  field?.ToUpperInvariant(),
                                  num);  // can be depth or limit
         }
+
+        internal object GetValue(string origin, string vendor, string instrument, string field)
+        {
+            return _subByPath[FormatPath(origin, vendor, instrument, field)].Value;
+        }
+
         class SubInfo
         {
-            public int TopicId { get; private set; }
+            public int TopicId { get; set; }
             public string Path { get; private set; }
             public object Value { get; set; }
 
@@ -456,6 +473,12 @@ namespace CryptoRtd
                 TopicId = topicId;
                 Path = path;
                 Value = UninitializedValue;
+            }
+            public SubInfo(string path, object value)
+            {
+                TopicId = -1;  // this a PreSet or PreCache
+                Path = path;
+                Value = value;
             }
         }
     }

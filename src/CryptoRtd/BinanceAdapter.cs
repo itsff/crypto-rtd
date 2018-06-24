@@ -3,6 +3,7 @@ using Binance.Net.Objects;
 using CryptoExchange.Net;
 using Newtonsoft.Json;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -21,6 +22,8 @@ namespace CryptoRtd
         public const string BINANCE_HISTORY = "BINANCE_HISTORY";
 
         private SubscriptionManager _subMgr;
+        private BinanceExchangeInfo _exchangeInfo;
+
 
         BinanceSocketClient socketClient;
         private Dictionary<string, bool> SubscribedTick = new Dictionary<string, bool>();
@@ -58,13 +61,23 @@ namespace CryptoRtd
             });
 
             socketClient = new BinanceSocketClient();
+
+            QueryExchangeInfo();
         }
 
         internal void UnsubscribeAllStreams()
         {
             socketClient.UnsubscribeAllStreams();
         }
+        private object PreCacheResult(string origin, string instrument, string field, object value)
+        {
+            lock (_subMgr)
+            {
+                _subMgr.PreSet(SubscriptionManager.FormatPath(origin, string.Empty, instrument, field), value);
+            }
 
+            return value;
+        }
         private object CacheResult(string origin, string instrument, string field, object value)
         {
             lock (_subMgr)
@@ -84,12 +97,36 @@ namespace CryptoRtd
             return value;
         }
 
-        public object Subscribe(string origin, string instrument, string field, int num)
+        public object Subscribe(int topicId, string origin, string instrument, string field, int num)
         {
+
+            lock (_subMgr)
+            {
+                if (num < 0)
+                    _subMgr.Subscribe(topicId, origin, String.Empty, instrument, field);
+                else
+                    _subMgr.Subscribe(topicId, origin, String.Empty, instrument, field, num);
+            }
+
             switch (origin)
             {
                 case BINANCE:
-                    return SubscribeTick(instrument, field);
+                    switch(field)
+                    {
+                        case RtdFields.BASE_ASSET: 
+                        case RtdFields.BASE_ASSET_PRECISION:
+                        //case RtdFields.FILTERS:
+                        case RtdFields.ICEBERG_ALLOWED:
+                        case RtdFields.NAME:
+                        case RtdFields.ORDER_TYPES:
+                        case RtdFields.QUOTE_ASSET:
+                        case RtdFields.QUOTE_ASSET_PRECISION:
+                        case RtdFields.STATUS:
+                        case RtdFields.EXCHANGE_SYMBOLS:
+                            return _subMgr.GetValue(origin, string.Empty, instrument, field);
+
+                        default: return SubscribeTick(instrument, field);
+                    }
 
                 case BINANCE_24H:
                     Get24HPriceAsync(instrument, field);
@@ -142,16 +179,21 @@ namespace CryptoRtd
                     CacheResult(BINANCE, instrument, field, result.Error.Message);
             }
         }
-        public object SubscribeStats(string stat)
+        public object QueryInfo(string stat)
         {
             switch(stat)
             {
-                case RtdFields.DRIFT: return SubscribeDrift();
+                case RtdFields.DRIFT: return QueryDrift();
+                case RtdFields.EXCHANGE_TIME: return _exchangeInfo.ServerTime.ToLocalTime();
+                case RtdFields.EXCHANGE_TIMEZONE: return _exchangeInfo.TimeZone;
+                case RtdFields.EXCHANGE_SYMBOLS: return _exchangeInfo.Symbols;
+                //case RtdFields.EXCHANGE_RATE_LIMITS: return _exchangeInfo.RateLimits;
+                //case RtdFields.EXCHANGE_FILTERS: return _exchangeInfo.ExchangeFilters;
             }
             return SubscriptionManager.UnsupportedField;
         }
 
-        public object SubscribeDrift()
+        public object QueryDrift()
         {
             using (var client = new BinanceClient())
             {
@@ -162,6 +204,45 @@ namespace CryptoRtd
 
                 return drift.Milliseconds;
             }
+        }
+        private BinanceExchangeInfo QueryExchangeInfo()
+        {
+            using (var client = new BinanceClient())
+            {
+                CallResult<BinanceExchangeInfo> info = client.GetExchangeInfo();
+                if (info.Success)
+                {
+                    _exchangeInfo = info.Data;
+
+                    var symbols = new List<string>(_exchangeInfo.Symbols.Length);
+                    foreach (BinanceSymbol symbol in _exchangeInfo.Symbols)
+                    {
+                        symbols.Add(symbol.Name);
+
+                        PreCacheResult(BINANCE, symbol.Name, RtdFields.BASE_ASSET, symbol.BaseAsset);
+                        PreCacheResult(BINANCE, symbol.Name, RtdFields.BASE_ASSET_PRECISION, symbol.BaseAssetPrecision);
+                        //PreCacheResult(BINANCE, symbol.Name, RtdFields.FILTERS, MakeStringArray(symbol.Filters));
+                        PreCacheResult(BINANCE, symbol.Name, RtdFields.ICEBERG_ALLOWED, symbol.IceBergAllowed);
+                        PreCacheResult(BINANCE, symbol.Name, RtdFields.NAME, symbol.Name);
+                        PreCacheResult(BINANCE, symbol.Name, RtdFields.ORDER_TYPES, MakeStringArray(symbol.OrderTypes));
+                        PreCacheResult(BINANCE, symbol.Name, RtdFields.QUOTE_ASSET, symbol.QuoteAsset);
+                        PreCacheResult(BINANCE, symbol.Name, RtdFields.QUOTE_ASSET_PRECISION, symbol.QuoteAssetPrecision);
+                        PreCacheResult(BINANCE, symbol.Name, RtdFields.STATUS, symbol.Status);
+                    }
+                    PreCacheResult(BINANCE, "", RtdFields.EXCHANGE_SYMBOLS, MakeStringArray(symbols));
+                }
+            }
+
+            return _exchangeInfo;
+        }
+        private string MakeStringArray(IEnumerable array)
+        {
+            var builder = new StringBuilder();
+            foreach(object o in array)
+            {
+                builder.Append(o.ToString()).Append("|");
+            }
+            return builder.ToString();
         }
 
         private async void Get24HPriceAsync(string instrument, string field)
