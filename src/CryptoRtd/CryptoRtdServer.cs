@@ -108,11 +108,21 @@ namespace CryptoRtd
                     {
                         case CLOCK:
                             _subMgr.Subscribe(topicId, CLOCK);
-                            break;
-
-                        default:
-                            return "Unsupported origin: " + origin;
+                            return DateTime.Now.ToLocalTime();
                     }
+                    return "Unsupported origin: " + origin;
+                }
+                else if (strings.Length == 2)
+                {
+                    string origin = strings.GetValue(0).ToString().ToUpperInvariant();
+                    string stat = strings.GetValue(1).ToString().ToUpperInvariant();
+
+                    switch(origin)
+                    {
+                        case BinanceAdapter.BINANCE:
+                            return _binanceAdapter.SubscribeStats(stat);
+                    }
+                    return "Unsupported origin: " + origin;
                 }
                 else if (strings.Length >= 3)
                 {
@@ -130,10 +140,6 @@ namespace CryptoRtd
 
                     switch (origin)
                     {
-                        case CLOCK:
-                            _subMgr.Subscribe(topicId, CLOCK);
-                            break;
-
                         case GDAX:
                             lock (_subMgr)
                             {
@@ -141,7 +147,7 @@ namespace CryptoRtd
                                 _subMgr.Subscribe(topicId,origin,String.Empty,instrument,field);
                             }
                             Task.Run(() => SubscribeGdaxWebSocketToTicker(topicId,instrument));  // dont block excel
-                            break;
+                            return SubscriptionManager.UninitializedValue;
 
                         case BinanceAdapter.BINANCE:
                         case BinanceAdapter.BINANCE_24H:
@@ -426,17 +432,17 @@ namespace CryptoRtd
         {
             return string.Format("{0}/{1}/{2}/{3}",
                                  origin.ToUpperInvariant(),
-                                 vendor.ToUpperInvariant(),
-                                 instrument.ToUpperInvariant(),
-                                 field.ToUpperInvariant());
+                                 vendor?.ToUpperInvariant(),
+                                 instrument?.ToUpperInvariant(),
+                                 field?.ToUpperInvariant());
         }
         public static string FormatPath(string origin, string vendor, string instrument, string field, int num)
         {
             return string.Format("{0}/{1}/{2}/{3}/{4}",
                                  origin.ToUpperInvariant(),
-                                 vendor.ToUpperInvariant(),
-                                 instrument.ToUpperInvariant(),
-                                 field.ToUpperInvariant(),
+                                 vendor?.ToUpperInvariant(),
+                                 instrument?.ToUpperInvariant(),
+                                 field?.ToUpperInvariant(),
                                  num);  // can be depth or limit
         }
         class SubInfo

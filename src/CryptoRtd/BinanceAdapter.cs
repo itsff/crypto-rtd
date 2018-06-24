@@ -89,10 +89,7 @@ namespace CryptoRtd
             switch (origin)
             {
                 case BINANCE:
-                    if (field.Equals(RtdFields.DRIFT))
-                        return SubscribeDrift();
-                    else 
-                        return SubscribeTick(instrument, field);
+                    return SubscribeTick(instrument, field);
 
                 case BINANCE_24H:
                     Get24HPriceAsync(instrument, field);
@@ -145,17 +142,25 @@ namespace CryptoRtd
                     CacheResult(BINANCE, instrument, field, result.Error.Message);
             }
         }
+        public object SubscribeStats(string stat)
+        {
+            switch(stat)
+            {
+                case RtdFields.DRIFT: return SubscribeDrift();
+            }
+            return SubscriptionManager.UnsupportedField;
+        }
 
-        private TimeSpan SubscribeDrift()
+        public object SubscribeDrift()
         {
             using (var client = new BinanceClient())
             {
                 DateTime server = client.GetServerTime().Data.ToLocalTime();
                 DateTime after = DateTime.Now.ToLocalTime();
                 TimeSpan drift = after.Subtract(server);
-                CacheResult(BINANCE, null, RtdFields.DRIFT, drift);
+                CacheResult(BINANCE, null, RtdFields.DRIFT, drift.Milliseconds);
 
-                return drift;
+                return drift.Milliseconds;
             }
         }
 
