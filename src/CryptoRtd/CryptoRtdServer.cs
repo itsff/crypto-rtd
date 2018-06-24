@@ -443,27 +443,13 @@ namespace CryptoRtd
         {
             public int TopicId { get; private set; }
             public string Path { get; private set; }
-
-            private object _value;
-
-            public object Value
-            {
-                get { return _value; }
-                set
-                {
-                    _value = value;
-                    IsDirty = true;
-                }
-            }
-
-            public bool IsDirty { get; set; }
+            public object Value { get; set; }
 
             public SubInfo (int topicId, string path)
             {
                 TopicId = topicId;
                 Path = path;
                 Value = UninitializedValue;
-                IsDirty = false;
             }
         }
     }
