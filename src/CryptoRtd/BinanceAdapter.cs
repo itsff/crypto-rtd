@@ -369,32 +369,20 @@ namespace CryptoRtd
         // Order Book
         private void CacheOrderBook(BinanceStreamOrderBook stream)
         {
-            var instrument = stream.Symbol;
-            var bidCount = stream.Bids.Count;
-            var askCount = stream.Asks.Count;
+            CacheResult(BINANCE_DEPTH, stream.Symbol, RtdFields.SYMBOL, stream.Symbol);
+            CacheResult(BINANCE_DEPTH, stream.Symbol, RtdFields.LAST_UPDATE_ID, stream.LastUpdateId);
 
-
-            for(int depth = 0; depth < bidCount; depth++)
+            for (int depth = 0; depth < stream.Bids.Count; depth++)
             {
-                CacheResult(BINANCE_DEPTH, instrument, RtdFields.BID_DEPTH, depth, stream.Bids[depth].Price);
-                CacheResult(BINANCE_DEPTH, instrument, RtdFields.BID_DEPTH_SIZE, depth, stream.Bids[depth].Quantity);
+                CacheResult(BINANCE_DEPTH, stream.Symbol, RtdFields.BID_DEPTH, depth, stream.Bids[depth].Price);
+                CacheResult(BINANCE_DEPTH, stream.Symbol, RtdFields.BID_DEPTH_SIZE, depth, stream.Bids[depth].Quantity);
             }
-            //for (int depth = bidCount; depth < 10; depth++)
-            //{
-            //    CacheResult(BINANCE, instrument, RtdFields.BID_DEPTH, depth, SubscriptionManager.UninitializedValue);
-            //    CacheResult(BINANCE, instrument, RtdFields.BID_DEPTH_SIZE, depth, SubscriptionManager.UninitializedValue);
-            //}
 
-            for (int depth = 0; depth < askCount; depth++)
+            for (int depth = 0; depth < stream.Asks.Count; depth++)
             {
-                CacheResult(BINANCE_DEPTH, instrument, RtdFields.ASK_DEPTH, depth, stream.Asks[depth].Price);
-                CacheResult(BINANCE_DEPTH, instrument, RtdFields.ASK_DEPTH_SIZE, depth, stream.Asks[depth].Quantity);
+                CacheResult(BINANCE_DEPTH, stream.Symbol, RtdFields.ASK_DEPTH, depth, stream.Asks[depth].Price);
+                CacheResult(BINANCE_DEPTH, stream.Symbol, RtdFields.ASK_DEPTH_SIZE, depth, stream.Asks[depth].Quantity);
             }
-            //for (int depth = askCount; depth < 10; depth++)
-            //{
-            //    CacheResult(BINANCE, instrument, RtdFields.ASK_DEPTH, depth, SubscriptionManager.UninitializedValue);
-            //    CacheResult(BINANCE, instrument, RtdFields.ASK_DEPTH_SIZE, depth, SubscriptionManager.UninitializedValue);
-            //}
         }
         private object DecodeOrderBook(BinanceStreamOrderBook stream, string field, int depth)
         {
@@ -403,6 +391,12 @@ namespace CryptoRtd
 
             switch (field)
             {
+                case RtdFields.SYMBOL:
+                    return stream.Symbol;
+
+                case RtdFields.LAST_UPDATE_ID:
+                    return stream.LastUpdateId;
+
                 case RtdFields.ASK_DEPTH:
                     if (depth >= askCount)
                         return SubscriptionManager.UninitializedValue;

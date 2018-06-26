@@ -62,11 +62,12 @@ namespace CryptoRtd
                                                OPEN, OPEN_TIME, CLOSE, CLOSE_TIME,VWAP, PRICE_PCT, PRICE_CHG, TRADES, SPREAD };
 
         // Depth
+        public const string LAST_UPDATE_ID = "LAST_UPDATE_ID";
         public const string ASK_DEPTH = "ASK_DEPTH";
         public const string ASK_DEPTH_SIZE = "ASK_DEPTH_SIZE";
         public const string BID_DEPTH = "BID_DEPTH";
         public const string BID_DEPTH_SIZE = "BID_DEPTH_SIZE";
-        public static readonly string[] DEPTH = { SYMBOL, ASK_DEPTH, ASK_DEPTH_SIZE, BID_DEPTH, BID_DEPTH_SIZE };
+        public static readonly string[] DEPTH = { SYMBOL, LAST_UPDATE_ID, ASK_DEPTH, ASK_DEPTH_SIZE, BID_DEPTH, BID_DEPTH_SIZE };
 
 
         // Trade
