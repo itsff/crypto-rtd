@@ -311,6 +311,10 @@ namespace CryptoRtd
             CacheResult( BINANCE, instrument, RtdFields.PRICE_CHG, data.PriceChange);
             CacheResult( BINANCE, instrument, RtdFields.TRADES, data.TotalTrades);
 
+            CacheResult(BINANCE, instrument, RtdFields.OPEN_TIME, data.StatisticsOpenTime.ToLocalTime());
+            CacheResult(BINANCE, instrument, RtdFields.CLOSE_TIME, data.StatisticsCloseTime.ToLocalTime());
+
+            // A calculated field
             CacheResult( BINANCE, instrument, RtdFields.SPREAD, data.BestAskPrice - data.BestBidPrice);
         }
 
