@@ -231,7 +231,7 @@ namespace CryptoRtd
                         PreCacheResult(BINANCE, symbol.Name, RtdFields.QUOTE_ASSET_PRECISION, symbol.QuoteAssetPrecision);
                         PreCacheResult(BINANCE, symbol.Name, RtdFields.STATUS, symbol.Status);
                     }
-                    PreCacheResult(BINANCE, String.Empty, RtdFields.EXCHANGE_SYMBOLS, JsonConvert.SerializeObject(symbols));
+                    PreCacheResult(BINANCE, String.Empty, RtdFields.EXCHANGE_SYMBOLS, MakeStringArray(symbols));
                 }
             }
 
@@ -239,12 +239,7 @@ namespace CryptoRtd
         }
         private string MakeStringArray(IEnumerable array)
         {
-            var builder = new StringBuilder();
-            foreach(object o in array)
-            {
-                builder.Append(o.ToString()).Append("|");
-            }
-            return builder.ToString();
+            return JsonConvert.SerializeObject(array);
         }
 
         private async void Get24HPriceAsync(string instrument, string field)
