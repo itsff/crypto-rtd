@@ -231,7 +231,7 @@ namespace CryptoRtd
                         PreCacheResult(BINANCE, symbol.Name, RtdFields.QUOTE_ASSET_PRECISION, symbol.QuoteAssetPrecision);
                         PreCacheResult(BINANCE, symbol.Name, RtdFields.STATUS, symbol.Status);
                     }
-                    PreCacheResult(BINANCE, "", RtdFields.EXCHANGE_SYMBOLS, MakeStringArray(symbols));
+                    PreCacheResult(BINANCE, String.Empty, RtdFields.EXCHANGE_SYMBOLS, JsonConvert.SerializeObject(symbols));
                 }
             }
 
