@@ -111,7 +111,9 @@ namespace CryptoRtd
             switch (origin)
             {
                 case BINANCE:
-                    switch(field)
+                    SubscribeTick(instrument, field);
+
+                    switch (field)
                     {
                         case RtdFields.BASE_ASSET: 
                         case RtdFields.BASE_ASSET_PRECISION:
@@ -123,14 +125,13 @@ namespace CryptoRtd
                         case RtdFields.QUOTE_ASSET_PRECISION:
                         case RtdFields.STATUS:
                         case RtdFields.EXCHANGE_SYMBOLS:
-                            return _subMgr.GetValue(origin, string.Empty, instrument, field);
-
-                        default: return SubscribeTick(instrument, field);
+                            return _subMgr.GetValue(topicId);
                     }
+                    break;
 
                 case BINANCE_24H:
                     Get24HPriceAsync(instrument, field);
-                    return SubscriptionManager.UninitializedValue;
+                    break;
 
                 case BINANCE_CANDLE:
                     return SubscribeCandle(instrument, field, num);
@@ -148,6 +149,7 @@ namespace CryptoRtd
                 default:
                     return "Unsupported origin: " + origin;
             }
+            return _subMgr.GetValue(topicId);
         }
 
         [Obsolete]

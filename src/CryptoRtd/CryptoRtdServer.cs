@@ -461,6 +461,13 @@ namespace CryptoRtd
         {
             return _subByPath[FormatPath(origin, vendor, instrument, field)].Value;
         }
+        public object GetValue(int topicId)
+        {
+            if (_subByTopicId.TryGetValue(topicId, out SubInfo sub))
+                return sub.Value;
+
+            return UninitializedValue;
+        }
 
         class SubInfo
         {
