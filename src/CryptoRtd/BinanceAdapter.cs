@@ -3,6 +3,7 @@ using Binance.Net.Objects;
 using CryptoExchange.Net;
 using Newtonsoft.Json;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -21,6 +22,8 @@ namespace CryptoRtd
         public const string BINANCE_HISTORY = "BINANCE_HISTORY";
 
         private SubscriptionManager _subMgr;
+        private BinanceExchangeInfo _exchangeInfo;
+
 
         BinanceSocketClient socketClient;
         private Dictionary<string, bool> SubscribedTick = new Dictionary<string, bool>();
@@ -58,13 +61,23 @@ namespace CryptoRtd
             });
 
             socketClient = new BinanceSocketClient();
+
+            QueryExchangeInfo();
         }
 
         internal void UnsubscribeAllStreams()
         {
             socketClient.UnsubscribeAllStreams();
         }
+        private object PreCacheResult(string origin, string instrument, string field, object value)
+        {
+            lock (_subMgr)
+            {
+                _subMgr.PreSet(SubscriptionManager.FormatPath(origin, string.Empty, instrument, field), value);
+            }
 
+            return value;
+        }
         private object CacheResult(string origin, string instrument, string field, object value)
         {
             lock (_subMgr)
@@ -84,19 +97,41 @@ namespace CryptoRtd
             return value;
         }
 
-        public object Subscribe(string origin, string instrument, string field, int num)
+        public object Subscribe(int topicId, string origin, string instrument, string field, int num)
         {
+
+            lock (_subMgr)
+            {
+                if (num < 0)
+                    _subMgr.Subscribe(topicId, origin, String.Empty, instrument, field);
+                else
+                    _subMgr.Subscribe(topicId, origin, String.Empty, instrument, field, num);
+            }
+
             switch (origin)
             {
                 case BINANCE:
-                    if (field.Equals(RtdFields.DRIFT))
-                        return SubscribeDrift();
-                    else 
-                        return SubscribeTick(instrument, field);
+                    SubscribeTick(instrument, field);
+
+                    switch (field)
+                    {
+                        case RtdFields.BASE_ASSET: 
+                        case RtdFields.BASE_ASSET_PRECISION:
+                        //case RtdFields.FILTERS:
+                        case RtdFields.ICEBERG_ALLOWED:
+                        case RtdFields.NAME:
+                        case RtdFields.ORDER_TYPES:
+                        case RtdFields.QUOTE_ASSET:
+                        case RtdFields.QUOTE_ASSET_PRECISION:
+                        case RtdFields.STATUS:
+                        case RtdFields.EXCHANGE_SYMBOLS:
+                            return _subMgr.GetValue(topicId);
+                    }
+                    break;
 
                 case BINANCE_24H:
                     Get24HPriceAsync(instrument, field);
-                    return SubscriptionManager.UninitializedValue;
+                    break;
 
                 case BINANCE_CANDLE:
                     return SubscribeCandle(instrument, field, num);
@@ -114,6 +149,7 @@ namespace CryptoRtd
                 default:
                     return "Unsupported origin: " + origin;
             }
+            return _subMgr.GetValue(topicId);
         }
 
         [Obsolete]
@@ -145,18 +181,65 @@ namespace CryptoRtd
                     CacheResult(BINANCE, instrument, field, result.Error.Message);
             }
         }
+        public object QueryInfo(string stat)
+        {
+            switch(stat)
+            {
+                case RtdFields.DRIFT: return QueryDrift();
+                case RtdFields.EXCHANGE_TIME: return _exchangeInfo.ServerTime.ToLocalTime();
+                case RtdFields.EXCHANGE_TIMEZONE: return _exchangeInfo.TimeZone;
+                case RtdFields.EXCHANGE_SYMBOLS: return _exchangeInfo.Symbols;
+                //case RtdFields.EXCHANGE_RATE_LIMITS: return _exchangeInfo.RateLimits;
+                //case RtdFields.EXCHANGE_FILTERS: return _exchangeInfo.ExchangeFilters;
+            }
+            return SubscriptionManager.UnsupportedField;
+        }
 
-        private TimeSpan SubscribeDrift()
+        public object QueryDrift()
         {
             using (var client = new BinanceClient())
             {
                 DateTime server = client.GetServerTime().Data.ToLocalTime();
                 DateTime after = DateTime.Now.ToLocalTime();
                 TimeSpan drift = after.Subtract(server);
-                CacheResult(BINANCE, null, RtdFields.DRIFT, drift);
+                CacheResult(BINANCE, null, RtdFields.DRIFT, drift.Milliseconds);
 
-                return drift;
+                return drift.Milliseconds;
             }
+        }
+        private BinanceExchangeInfo QueryExchangeInfo()
+        {
+            using (var client = new BinanceClient())
+            {
+                CallResult<BinanceExchangeInfo> info = client.GetExchangeInfo();
+                if (info.Success)
+                {
+                    _exchangeInfo = info.Data;
+
+                    var symbols = new List<string>(_exchangeInfo.Symbols.Length);
+                    foreach (BinanceSymbol symbol in _exchangeInfo.Symbols)
+                    {
+                        symbols.Add(symbol.Name);
+
+                        PreCacheResult(BINANCE, symbol.Name, RtdFields.BASE_ASSET, symbol.BaseAsset);
+                        PreCacheResult(BINANCE, symbol.Name, RtdFields.BASE_ASSET_PRECISION, symbol.BaseAssetPrecision);
+                        //PreCacheResult(BINANCE, symbol.Name, RtdFields.FILTERS, MakeStringArray(symbol.Filters));
+                        PreCacheResult(BINANCE, symbol.Name, RtdFields.ICEBERG_ALLOWED, symbol.IceBergAllowed);
+                        PreCacheResult(BINANCE, symbol.Name, RtdFields.NAME, symbol.Name);
+                        PreCacheResult(BINANCE, symbol.Name, RtdFields.ORDER_TYPES, MakeStringArray(symbol.OrderTypes));
+                        PreCacheResult(BINANCE, symbol.Name, RtdFields.QUOTE_ASSET, symbol.QuoteAsset);
+                        PreCacheResult(BINANCE, symbol.Name, RtdFields.QUOTE_ASSET_PRECISION, symbol.QuoteAssetPrecision);
+                        PreCacheResult(BINANCE, symbol.Name, RtdFields.STATUS, symbol.Status);
+                    }
+                    PreCacheResult(BINANCE, String.Empty, RtdFields.EXCHANGE_SYMBOLS, MakeStringArray(symbols));
+                }
+            }
+
+            return _exchangeInfo;
+        }
+        private string MakeStringArray(IEnumerable array)
+        {
+            return JsonConvert.SerializeObject(array);
         }
 
         private async void Get24HPriceAsync(string instrument, string field)
@@ -207,25 +290,32 @@ namespace CryptoRtd
         private void CacheTick(BinanceStreamTick data)
         {
             var instrument = data.Symbol;
-            CacheResult( BINANCE, instrument, RtdFields.FIRST_ID, data.FirstTradeId);
-            CacheResult( BINANCE, instrument, RtdFields.LAST_ID, data.LastTradeId);
-            CacheResult( BINANCE, instrument, RtdFields.QUOTE_VOL, data.TotalTradedQuoteAssetVolume);
-            CacheResult( BINANCE, instrument, RtdFields.VOL, data.TotalTradedBaseAssetVolume);
+            lock (_subMgr)
+            {
+                CacheResult(BINANCE, instrument, RtdFields.FIRST_ID, data.FirstTradeId);
+                CacheResult(BINANCE, instrument, RtdFields.LAST_ID, data.LastTradeId);
+                CacheResult(BINANCE, instrument, RtdFields.QUOTE_VOL, data.TotalTradedQuoteAssetVolume);
+                CacheResult(BINANCE, instrument, RtdFields.VOL, data.TotalTradedBaseAssetVolume);
 
-            CacheResult( BINANCE, instrument, RtdFields.ASK, data.BestAskPrice);
-            CacheResult( BINANCE, instrument, RtdFields.ASK_SIZE, data.BestAskQuantity);
-            CacheResult( BINANCE, instrument, RtdFields.BID, data.BestBidPrice);
-            CacheResult( BINANCE, instrument, RtdFields.BID_SIZE, data.BestBidQuantity);
+                CacheResult(BINANCE, instrument, RtdFields.ASK, data.BestAskPrice);
+                CacheResult(BINANCE, instrument, RtdFields.ASK_SIZE, data.BestAskQuantity);
+                CacheResult(BINANCE, instrument, RtdFields.BID, data.BestBidPrice);
+                CacheResult(BINANCE, instrument, RtdFields.BID_SIZE, data.BestBidQuantity);
 
-            CacheResult( BINANCE, instrument, RtdFields.LOW, data.LowPrice);
-            CacheResult( BINANCE, instrument, RtdFields.HIGH, data.HighPrice);
+                CacheResult(BINANCE, instrument, RtdFields.LOW, data.LowPrice);
+                CacheResult(BINANCE, instrument, RtdFields.HIGH, data.HighPrice);
 
-            CacheResult( BINANCE, instrument, RtdFields.VWAP, data.WeightedAverage);
-            CacheResult( BINANCE, instrument, RtdFields.PRICE_PCT, data.PriceChangePercentage / 100);
-            CacheResult( BINANCE, instrument, RtdFields.PRICE_CHG, data.PriceChange);
-            CacheResult( BINANCE, instrument, RtdFields.TRADES, data.TotalTrades);
+                CacheResult(BINANCE, instrument, RtdFields.VWAP, data.WeightedAverage);
+                CacheResult(BINANCE, instrument, RtdFields.PRICE_PCT, data.PriceChangePercentage / 100);
+                CacheResult(BINANCE, instrument, RtdFields.PRICE_CHG, data.PriceChange);
+                CacheResult(BINANCE, instrument, RtdFields.TRADES, data.TotalTrades);
 
-            CacheResult( BINANCE, instrument, RtdFields.SPREAD, data.BestAskPrice - data.BestBidPrice);
+                CacheResult(BINANCE, instrument, RtdFields.OPEN_TIME, data.StatisticsOpenTime.ToLocalTime());
+                CacheResult(BINANCE, instrument, RtdFields.CLOSE_TIME, data.StatisticsCloseTime.ToLocalTime());
+
+                // A calculated field
+                CacheResult(BINANCE, instrument, RtdFields.SPREAD, data.BestAskPrice - data.BestBidPrice);
+            }
         }
 
         private object DecodeTick(BinanceStreamTick data, string field)
@@ -283,32 +373,23 @@ namespace CryptoRtd
         // Order Book
         private void CacheOrderBook(BinanceStreamOrderBook stream)
         {
-            var instrument = stream.Symbol;
-            var bidCount = stream.Bids.Count;
-            var askCount = stream.Asks.Count;
-
-
-            for(int depth = 0; depth < bidCount; depth++)
+            lock (_subMgr)
             {
-                CacheResult(BINANCE_DEPTH, instrument, RtdFields.BID_DEPTH, depth, stream.Bids[depth].Price);
-                CacheResult(BINANCE_DEPTH, instrument, RtdFields.BID_DEPTH_SIZE, depth, stream.Bids[depth].Quantity);
-            }
-            //for (int depth = bidCount; depth < 10; depth++)
-            //{
-            //    CacheResult(BINANCE, instrument, RtdFields.BID_DEPTH, depth, SubscriptionManager.UninitializedValue);
-            //    CacheResult(BINANCE, instrument, RtdFields.BID_DEPTH_SIZE, depth, SubscriptionManager.UninitializedValue);
-            //}
+                CacheResult(BINANCE_DEPTH, stream.Symbol, RtdFields.SYMBOL, stream.Symbol);
+                CacheResult(BINANCE_DEPTH, stream.Symbol, RtdFields.LAST_UPDATE_ID, stream.LastUpdateId);
 
-            for (int depth = 0; depth < askCount; depth++)
-            {
-                CacheResult(BINANCE_DEPTH, instrument, RtdFields.ASK_DEPTH, depth, stream.Asks[depth].Price);
-                CacheResult(BINANCE_DEPTH, instrument, RtdFields.ASK_DEPTH_SIZE, depth, stream.Asks[depth].Quantity);
+                for (int depth = 0; depth < stream.Bids.Count; depth++)
+                {
+                    CacheResult(BINANCE_DEPTH, stream.Symbol, RtdFields.BID_DEPTH, depth, stream.Bids[depth].Price);
+                    CacheResult(BINANCE_DEPTH, stream.Symbol, RtdFields.BID_DEPTH_SIZE, depth, stream.Bids[depth].Quantity);
+                }
+
+                for (int depth = 0; depth < stream.Asks.Count; depth++)
+                {
+                    CacheResult(BINANCE_DEPTH, stream.Symbol, RtdFields.ASK_DEPTH, depth, stream.Asks[depth].Price);
+                    CacheResult(BINANCE_DEPTH, stream.Symbol, RtdFields.ASK_DEPTH_SIZE, depth, stream.Asks[depth].Quantity);
+                }
             }
-            //for (int depth = askCount; depth < 10; depth++)
-            //{
-            //    CacheResult(BINANCE, instrument, RtdFields.ASK_DEPTH, depth, SubscriptionManager.UninitializedValue);
-            //    CacheResult(BINANCE, instrument, RtdFields.ASK_DEPTH_SIZE, depth, SubscriptionManager.UninitializedValue);
-            //}
         }
         private object DecodeOrderBook(BinanceStreamOrderBook stream, string field, int depth)
         {
@@ -317,6 +398,12 @@ namespace CryptoRtd
 
             switch (field)
             {
+                case RtdFields.SYMBOL:
+                    return stream.Symbol;
+
+                case RtdFields.LAST_UPDATE_ID:
+                    return stream.LastUpdateId;
+
                 case RtdFields.ASK_DEPTH:
                     if (depth >= askCount)
                         return SubscriptionManager.UninitializedValue;
@@ -371,17 +458,20 @@ namespace CryptoRtd
         private void CacheTrade(BinanceStreamAggregatedTrade stream)
         {
             var instrument = stream.Symbol;
-            //CacheResult(BINANCE_TRADE, instrument, RtdFields.TRADE_ID, stream.TradeId);
-            CacheResult(BINANCE_TRADE, instrument, RtdFields.TRADE_ID, stream.AggregatedTradeId);
-            CacheResult(BINANCE_TRADE, instrument, RtdFields.PRICE, stream.Price);
-            CacheResult(BINANCE_TRADE, instrument, RtdFields.QUANTITY, stream.Quantity);
-            //CacheResult(BINANCE_TRADE, instrument, RtdFields.BUYER_ORDER_ID, stream.BuyerOrderId);
-            //CacheResult(BINANCE_TRADE, instrument, RtdFields.SELLER_ORDER_ID, stream.SellerOrderId);
-            CacheResult(BINANCE_TRADE, instrument, RtdFields.FIRST_ID, stream.FirstTradeId);
-            CacheResult(BINANCE_TRADE, instrument, RtdFields.LAST_ID, stream.LastTradeId);
-            CacheResult(BINANCE_TRADE, instrument, RtdFields.TRADE_TIME, stream.TradeTime.ToLocalTime());
-            CacheResult(BINANCE_TRADE, instrument, RtdFields.BUYER_IS_MAKER, stream.BuyerIsMaker);
-            CacheResult(BINANCE_TRADE, instrument, RtdFields.IGNORE, stream.Ignore);
+            lock (_subMgr)
+            {
+                //CacheResult(BINANCE_TRADE, instrument, RtdFields.TRADE_ID, stream.TradeId);
+                CacheResult(BINANCE_TRADE, instrument, RtdFields.TRADE_ID, stream.AggregatedTradeId);
+                CacheResult(BINANCE_TRADE, instrument, RtdFields.PRICE, stream.Price);
+                CacheResult(BINANCE_TRADE, instrument, RtdFields.QUANTITY, stream.Quantity);
+                //CacheResult(BINANCE_TRADE, instrument, RtdFields.BUYER_ORDER_ID, stream.BuyerOrderId);
+                //CacheResult(BINANCE_TRADE, instrument, RtdFields.SELLER_ORDER_ID, stream.SellerOrderId);
+                CacheResult(BINANCE_TRADE, instrument, RtdFields.FIRST_ID, stream.FirstTradeId);
+                CacheResult(BINANCE_TRADE, instrument, RtdFields.LAST_ID, stream.LastTradeId);
+                CacheResult(BINANCE_TRADE, instrument, RtdFields.TRADE_TIME, stream.TradeTime.ToLocalTime());
+                CacheResult(BINANCE_TRADE, instrument, RtdFields.BUYER_IS_MAKER, stream.BuyerIsMaker);
+                CacheResult(BINANCE_TRADE, instrument, RtdFields.IGNORE, stream.Ignore);
+            }
         }
         private object DecodeTrade(BinanceStreamAggregatedTrade stream, string field)
         {
@@ -432,26 +522,30 @@ namespace CryptoRtd
         {
             var instrument = stream.Symbol;
             var data = stream.Data;
-            CacheResult(BINANCE_CANDLE, instrument, RtdFields.EVENT, interval,stream.Event);
-            CacheResult(BINANCE_CANDLE, instrument, RtdFields.EVENT_TIME, interval, stream.EventTime.ToLocalTime());
+            lock (_subMgr)
+            {
 
-            CacheResult(BINANCE_CANDLE, instrument, RtdFields.FIRST_ID, interval, data.FirstTrade);
-            CacheResult(BINANCE_CANDLE, instrument, RtdFields.LAST_ID, interval, data.LastTrade);
+                CacheResult(BINANCE_CANDLE, instrument, RtdFields.EVENT, interval, stream.Event);
+                CacheResult(BINANCE_CANDLE, instrument, RtdFields.EVENT_TIME, interval, stream.EventTime.ToLocalTime());
 
-            CacheResult(BINANCE_CANDLE, instrument, RtdFields.HIGH, interval, data.High);
-            CacheResult(BINANCE_CANDLE, instrument, RtdFields.LOW, interval, data.Low);
-            CacheResult(BINANCE_CANDLE, instrument, RtdFields.OPEN_TIME, interval, data.OpenTime.ToLocalTime());
-            CacheResult(BINANCE_CANDLE, instrument, RtdFields.OPEN, interval, data.Open);
-            CacheResult(BINANCE_CANDLE, instrument, RtdFields.CLOSE_TIME, interval, data.CloseTime.ToLocalTime());
-            CacheResult(BINANCE_CANDLE, instrument, RtdFields.CLOSE, interval, data.Close);
-            CacheResult(BINANCE_CANDLE, instrument, RtdFields.FINAL, interval, data.Final);
-            CacheResult(BINANCE_CANDLE, instrument, RtdFields.INTERVAL, interval, data.Interval.ToString());
+                CacheResult(BINANCE_CANDLE, instrument, RtdFields.FIRST_ID, interval, data.FirstTrade);
+                CacheResult(BINANCE_CANDLE, instrument, RtdFields.LAST_ID, interval, data.LastTrade);
 
-            CacheResult(BINANCE_CANDLE, instrument, RtdFields.TRADES, interval, data.TradeCount);
-            CacheResult(BINANCE_CANDLE, instrument, RtdFields.QUOTE_VOL, interval, data.QuoteAssetVolume);
-            CacheResult(BINANCE_CANDLE, instrument, RtdFields.VOL, interval, data.Volume);
-            CacheResult(BINANCE_CANDLE, instrument, RtdFields.TAKE_BUY_VOL, interval, data.TakerBuyBaseAssetVolume);
-            CacheResult(BINANCE_CANDLE, instrument, RtdFields.TAKE_BUY_QUOTE_VOL, interval, data.TakerBuyQuoteAssetVolume);
+                CacheResult(BINANCE_CANDLE, instrument, RtdFields.HIGH, interval, data.High);
+                CacheResult(BINANCE_CANDLE, instrument, RtdFields.LOW, interval, data.Low);
+                CacheResult(BINANCE_CANDLE, instrument, RtdFields.OPEN_TIME, interval, data.OpenTime.ToLocalTime());
+                CacheResult(BINANCE_CANDLE, instrument, RtdFields.OPEN, interval, data.Open);
+                CacheResult(BINANCE_CANDLE, instrument, RtdFields.CLOSE_TIME, interval, data.CloseTime.ToLocalTime());
+                CacheResult(BINANCE_CANDLE, instrument, RtdFields.CLOSE, interval, data.Close);
+                CacheResult(BINANCE_CANDLE, instrument, RtdFields.FINAL, interval, data.Final);
+                CacheResult(BINANCE_CANDLE, instrument, RtdFields.INTERVAL, interval, data.Interval.ToString());
+
+                CacheResult(BINANCE_CANDLE, instrument, RtdFields.TRADES, interval, data.TradeCount);
+                CacheResult(BINANCE_CANDLE, instrument, RtdFields.QUOTE_VOL, interval, data.QuoteAssetVolume);
+                CacheResult(BINANCE_CANDLE, instrument, RtdFields.VOL, interval, data.Volume);
+                CacheResult(BINANCE_CANDLE, instrument, RtdFields.TAKE_BUY_VOL, interval, data.TakerBuyBaseAssetVolume);
+                CacheResult(BINANCE_CANDLE, instrument, RtdFields.TAKE_BUY_QUOTE_VOL, interval, data.TakerBuyQuoteAssetVolume);
+            }
         }
         private object DecodeCandle(BinanceStreamKlineData stream, string field)
         {
