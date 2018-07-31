@@ -24,7 +24,6 @@ namespace CryptoRtd
         private SubscriptionManager _subMgr;
         private BinanceExchangeInfo _exchangeInfo;
 
-
         BinanceSocketClient socketClient;
         private Dictionary<string, bool> SubscribedTick = new Dictionary<string, bool>();
         private Dictionary<string, bool> SubscribedDepth = new Dictionary<string, bool>();
@@ -62,7 +61,7 @@ namespace CryptoRtd
 
             socketClient = new BinanceSocketClient();
 
-            QueryExchangeInfo();
+            _exchangeInfo = QueryExchangeInfo();
         }
 
         internal void UnsubscribeAllStreams()
@@ -232,10 +231,16 @@ namespace CryptoRtd
                         PreCacheResult(BINANCE, symbol.Name, RtdFields.STATUS, symbol.Status);
                     }
                     PreCacheResult(BINANCE, String.Empty, RtdFields.EXCHANGE_SYMBOLS, MakeStringArray(symbols));
+
+                    return _exchangeInfo;
+                }
+                else
+                {
+                    Console.Out.WriteLine(info.Error);
+                    return null;
                 }
             }
 
-            return _exchangeInfo;
         }
         private string MakeStringArray(IEnumerable array)
         {
