@@ -23,6 +23,7 @@ namespace CryptoRtd
 
         private SubscriptionManager _subMgr;
         private BinanceExchangeInfo _exchangeInfo;
+        private int _drift;
 
         BinanceSocketClient socketClient;
         private Dictionary<string, bool> SubscribedTick = new Dictionary<string, bool>();
@@ -62,6 +63,7 @@ namespace CryptoRtd
             socketClient = new BinanceSocketClient();
 
             _exchangeInfo = QueryExchangeInfo();
+            _drift = QueryDrift();
         }
 
         internal void UnsubscribeAllStreams()
@@ -184,7 +186,7 @@ namespace CryptoRtd
         {
             switch(stat)
             {
-                case RtdFields.DRIFT: return QueryDrift();
+                case RtdFields.DRIFT: return _drift;
                 case RtdFields.EXCHANGE_TIME: return _exchangeInfo.ServerTime.ToLocalTime();
                 case RtdFields.EXCHANGE_TIMEZONE: return _exchangeInfo.TimeZone;
                 case RtdFields.EXCHANGE_SYMBOLS: return _exchangeInfo.Symbols;
@@ -194,12 +196,12 @@ namespace CryptoRtd
             return SubscriptionManager.UnsupportedField;
         }
 
-        public object QueryDrift()
+        public int QueryDrift()
         {
             using (var client = new BinanceClient())
             {
-                DateTime server = client.GetServerTime().Data.ToLocalTime();
-                DateTime after = DateTime.Now.ToLocalTime();
+                DateTime server = client.GetServerTime().Data;
+                DateTime after = DateTime.Now;
                 TimeSpan drift = after.Subtract(server);
                 CacheResult(BINANCE, null, RtdFields.DRIFT, drift.Milliseconds);
 
@@ -367,11 +369,13 @@ namespace CryptoRtd
             else
             {
                 SubscribedTick.Add(instrument, true);
-                var successSymbol = socketClient.SubscribeToSymbolTicker(instrument, (BinanceStreamTick data) =>
-                {
-                    TickCache[key] = data;
-                    CacheTick(data);
-                });
+                Task.Run(() =>
+                    socketClient.SubscribeToSymbolTicker(instrument, (BinanceStreamTick data) =>
+                    {
+                        TickCache[key] = data;
+                        CacheTick(data);
+                    })
+                );
                 return SubscriptionManager.UninitializedValue;
             }
         }
