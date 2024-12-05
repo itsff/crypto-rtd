@@ -10,10 +10,28 @@ namespace CryptoRtd
     {
         public const string BINANCE = "BINANCE";
 
+
+        //Info
+        public const string DRIFT = "DRIFT";
+        public const string EXCHANGE_TIME = "EXCHANGE_TIME";
+        public const string EXCHANGE_TIMEZONE = "EXCHANGE_TIMEZONE";
+        public const string EXCHANGE_SYMBOLS = "EXCHANGE_SYMBOLS";
+        //public const string EXCHANGE_RATE_LIMITS = "EXCHANGE_RATE_LIMITS";
+        //public const string EXCHANGE_FILTERS = "EXCHANGE_FILTERS";
+
+        public const string BASE_ASSET = "BASE_ASSET";
+        public const string BASE_ASSET_PRECISION = "BASE_ASSET_PRECISION";
+        //public const string FILTERS = "FILTERS";
+        public const string ICEBERG_ALLOWED = "ICEBERG_ALLOWED";
+        public const string NAME = "NAME";
+        public const string ORDER_TYPES = "ORDER_TYPES";
+        public const string QUOTE_ASSET ="QUOTE_ASSET";
+        public const string QUOTE_ASSET_PRECISION = "QUOTE_ASSET_PRECISION";
+        public const string STATUS = "STATUS";
+
         // Price
         public const string PRICE = "PRICE";
         public const string SYMBOL = "SYMBOL";
-        public const string DRIFT = "DRIFT";
         public static readonly string[] PRICE_FIELDS = { PRICE, SYMBOL, DRIFT };
 
         // 24Price
@@ -44,11 +62,12 @@ namespace CryptoRtd
                                                OPEN, OPEN_TIME, CLOSE, CLOSE_TIME,VWAP, PRICE_PCT, PRICE_CHG, TRADES, SPREAD };
 
         // Depth
+        public const string LAST_UPDATE_ID = "LAST_UPDATE_ID";
         public const string ASK_DEPTH = "ASK_DEPTH";
         public const string ASK_DEPTH_SIZE = "ASK_DEPTH_SIZE";
         public const string BID_DEPTH = "BID_DEPTH";
         public const string BID_DEPTH_SIZE = "BID_DEPTH_SIZE";
-        public static readonly string[] DEPTH = { SYMBOL, ASK_DEPTH, ASK_DEPTH_SIZE, BID_DEPTH, BID_DEPTH_SIZE };
+        public static readonly string[] DEPTH = { SYMBOL, LAST_UPDATE_ID, ASK_DEPTH, ASK_DEPTH_SIZE, BID_DEPTH, BID_DEPTH_SIZE };
 
 
         // Trade

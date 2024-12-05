@@ -6,11 +6,15 @@ to run on Windows 7 machines.
 
 ## Installation
 1. Clone the repository and go to its folder.
-2. Compile the code using Visual Studio, MSBuild or via this handy script file:
+2. Clone mdvx/CryptoExchange.Net and mdvx/Binance.Net from
+	* https://github.com/mdvx/CryptoExchange.Net
+	* https://github.com/mdvx/Binance.Net
+3. Build the Release target for these two Projects, the forks include Strong name signing for Excel.
 
-   `build.cmd`
+4. Compile the code using Visual Studio
+   Open project in Visual Studio and fix up the references to Binance.net and CryptoExchange.Net
 
-3. Register the COM server by running the following script in admin command prompt:
+5. Register the COM server by running the following script in admin command prompt:
    
    `register.cmd`
 
@@ -20,11 +24,15 @@ Once the RTD server has been installed, you can use it from Excel via the RTD ma
 This is the syntax:
 
 * `=RTD("crypto",,"GDAX", instrument, field)`
+
+* `=RTD("crypto",,"CLOCK")` // A high fidelity clock update every few milliseconds
+
 * `=RTD("crypto",,"BINANCE", instrument, field)`
 * `=RTD("crypto",,"BINANCE_DEPTH",instrument, field,depth)` // depth is 0-9
 * `=RTD("crypto",,"BINANCE_TRADE",instrument, field)`
 * `=RTD("crypto",,"BINANCE_CANDLE",instrument, interval, field)`   // interval is 0-11
-* `=RTD("crypto",,"BINANCE_HISTORY",instrument)`  // not yet working
+* `=RTD("crypto",,"BINANCE_HISTORY",instrument)` // Returns and string Array
+* `=RTD("crypto",,"BINANCE", "DRIFT")` // drift between Binance Server and RTD Server
 
 *All* currency pairs traded on GDAX are supported, including the main ones:
 * BTC-USD

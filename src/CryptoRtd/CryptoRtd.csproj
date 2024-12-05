@@ -4,7 +4,7 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{95F50618-AA6C-4551-8CD7-49E04C0D5CE9}</ProjectGuid>
+    <ProjectGuid>{5B968A88-46DB-429C-A10E-AE86018FBAEB}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>CryptoRtd</RootNamespace>

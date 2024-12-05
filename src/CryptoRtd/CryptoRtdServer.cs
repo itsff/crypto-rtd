@@ -108,11 +108,21 @@ namespace CryptoRtd
                     {
                         case CLOCK:
                             _subMgr.Subscribe(topicId, CLOCK);
-                            break;
-
-                        default:
-                            return "Unsupported origin: " + origin;
+                            return DateTime.Now.ToLocalTime();
                     }
+                    return "Unsupported origin: " + origin;
+                }
+                else if (strings.Length == 2)
+                {
+                    string origin = strings.GetValue(0).ToString().ToUpperInvariant();
+                    string stat = strings.GetValue(1).ToString().ToUpperInvariant();
+
+                    switch(origin)
+                    {
+                        case BinanceAdapter.BINANCE:
+                            return _binanceAdapter.QueryInfo(stat);
+                    }
+                    return "Unsupported origin: " + origin;
                 }
                 else if (strings.Length >= 3)
                 {
@@ -130,10 +140,6 @@ namespace CryptoRtd
 
                     switch (origin)
                     {
-                        case CLOCK:
-                            _subMgr.Subscribe(topicId, CLOCK);
-                            break;
-
                         case GDAX:
                             lock (_subMgr)
                             {
@@ -141,7 +147,7 @@ namespace CryptoRtd
                                 _subMgr.Subscribe(topicId,origin,String.Empty,instrument,field);
                             }
                             Task.Run(() => SubscribeGdaxWebSocketToTicker(topicId,instrument));  // dont block excel
-                            break;
+                            return SubscriptionManager.UninitializedValue;
 
                         case BinanceAdapter.BINANCE:
                         case BinanceAdapter.BINANCE_24H:
@@ -153,18 +159,11 @@ namespace CryptoRtd
                             if (strings.Length > 3)
                                 Int32.TryParse(strings.GetValue(3).ToString(), out depth);
 
-                            lock (_subMgr)
-                            {
-                                if (depth < 0)
-                                    _subMgr.Subscribe(topicId,origin,String.Empty,instrument,field);
-                                else
-                                    _subMgr.Subscribe(topicId,origin,String.Empty,instrument,field,depth);
-                            }
-                            return _binanceAdapter.Subscribe(origin, instrument, field, depth);
+                            return _binanceAdapter.Subscribe(topicId, origin, instrument, field, depth);
                         default:
                             return "ERROR: Unsupported origin: " + origin;
                     }
-                    return SubscriptionManager.UninitializedValue;
+                    //return SubscriptionManager.UninitializedValue;
                 }
                 return "ERROR: Expected: origin, vendor, instrument, field, [depth]";
             }
@@ -257,15 +256,15 @@ namespace CryptoRtd
 
                 lock (_subMgr)
                 {
-                    _subMgr.Set(SubscriptionManager.FormatPath(origin, String.Empty, prod, "BID"),jobj.best_bid);
-                    _subMgr.Set(SubscriptionManager.FormatPath(origin, String.Empty, prod, "ASK"),jobj.best_ask);
-                    _subMgr.Set(SubscriptionManager.FormatPath(origin, String.Empty, prod, "LAST_SIZE"),jobj.last_size);
+                    _subMgr.Set(SubscriptionManager.FormatPath(origin, String.Empty, prod, RtdFields.BID),jobj.best_bid);
+                    _subMgr.Set(SubscriptionManager.FormatPath(origin, String.Empty, prod, RtdFields.ASK),jobj.best_ask);
+                    _subMgr.Set(SubscriptionManager.FormatPath(origin, String.Empty, prod, RtdFields.LAST_SIZE),jobj.last_size);
                     _subMgr.Set(SubscriptionManager.FormatPath(origin, String.Empty, prod, "LAST_PRICE"),jobj.price);
                     _subMgr.Set(SubscriptionManager.FormatPath(origin, String.Empty, prod, "LAST_SIDE"),jobj.side);
-                    _subMgr.Set(SubscriptionManager.FormatPath(origin, String.Empty, prod, "high_24h"), jobj.high_24h);
-                    _subMgr.Set(SubscriptionManager.FormatPath(origin, String.Empty, prod, "low_24h"), jobj.low_24h);
-                    _subMgr.Set(SubscriptionManager.FormatPath(origin, String.Empty, prod, "open_24h"), jobj.open_24h);
-                    _subMgr.Set(SubscriptionManager.FormatPath(origin, String.Empty, prod, "volume_24h"), jobj.volume_24h);
+                    _subMgr.Set(SubscriptionManager.FormatPath(origin, String.Empty, prod, "HIGH_24H"), jobj.high_24h);
+                    _subMgr.Set(SubscriptionManager.FormatPath(origin, String.Empty, prod, "LOW_24H"), jobj.low_24h);
+                    _subMgr.Set(SubscriptionManager.FormatPath(origin, String.Empty, prod, "OPEN_24H"), jobj.open_24h);
+                    _subMgr.Set(SubscriptionManager.FormatPath(origin, String.Empty, prod, "VOLUME_24H"), jobj.volume_24h);
                 }
             }
         }
@@ -328,14 +327,21 @@ namespace CryptoRtd
 
         readonly Dictionary<string, SubInfo> _subByPath;
         readonly Dictionary<int, SubInfo> _subByTopicId;
+        readonly Dictionary<int, SubInfo> _dirtyMap;
 
         public SubscriptionManager ()
         {
             _subByPath = new Dictionary<string, SubInfo>();
             _subByTopicId = new Dictionary<int, SubInfo>();
+            _dirtyMap = new Dictionary<int, SubInfo>();
         }
 
-        public bool IsDirty { get; private set; }
+        public bool IsDirty {
+            get
+            {
+                return _dirtyMap.Count > 0;
+            }
+        }
         public void Subscribe(int topicId, string origin)
         {
             var subInfo = new SubInfo(topicId, origin);
@@ -345,24 +351,26 @@ namespace CryptoRtd
         }
         public void Subscribe(int topicId, string origin, string vendor, string instrument, string field)
         {
-            var subInfo = new SubInfo(
-                topicId,
-                FormatPath(origin, vendor, instrument, field));
+            var path = FormatPath(origin, vendor, instrument, field);
+            if (_subByPath.TryGetValue(path, out SubInfo subInfo))
+                subInfo.TopicId = topicId;
+            else
+                subInfo = new SubInfo(topicId, path);
 
             _subByTopicId[topicId] = subInfo;
             _subByPath[subInfo.Path] = subInfo;
         }
         public void Subscribe(int topicId, string origin, string vendor, string instrument, string field, int depth)
         {
-            var subInfo = new SubInfo(
-                topicId,
-                FormatPath(origin, vendor, instrument, field, depth));
+            var path = FormatPath(origin, vendor, instrument, field, depth);
+            if (!_subByTopicId.TryGetValue(topicId, out SubInfo subInfo))
+                subInfo = new SubInfo(topicId, path);
 
             _subByTopicId[topicId] = subInfo;
             _subByPath[subInfo.Path] = subInfo;
         }
 
-        public void Unsubscribe (int topicId)
+        public void Unsubscribe(int topicId)
         {
             SubInfo subInfo;
             if (_subByTopicId.TryGetValue(topicId, out subInfo))
@@ -376,17 +384,14 @@ namespace CryptoRtd
         {
             var updated = new List<UpdatedValue>(_subByTopicId.Count);
 
-            // For simplicity, let's just do a linear scan
-            foreach (var subInfo in _subByTopicId.Values)
+            lock (_dirtyMap)
             {
-                if (subInfo.IsDirty)
+                foreach (var subInfo in _dirtyMap.Values)
                 {
                     updated.Add(new UpdatedValue(subInfo.TopicId, subInfo.Value));
-                    subInfo.IsDirty = false;
                 }
+                _dirtyMap.Clear();
             }
-
-            IsDirty = false;
 
             return updated;
         }
@@ -399,7 +404,8 @@ namespace CryptoRtd
                 if (value != subInfo.Value)
                 {
                     subInfo.Value = value;
-                    IsDirty = true;
+                    lock (_dirtyMap)
+                        _dirtyMap[subInfo.TopicId] = subInfo;
                 }
             }
         }
@@ -411,53 +417,75 @@ namespace CryptoRtd
                 if (value != subInfo.Value)
                 {
                     subInfo.Value = value;
-                    IsDirty = true;
+                    lock(_dirtyMap)
+                        _dirtyMap[subInfo.TopicId] = subInfo;
                 }
             }
         }
-
+        public void PreSet(string path, object value)
+        {
+            SubInfo subInfo;
+            if (_subByPath.TryGetValue(path, out subInfo))
+            {
+                if (value != subInfo.Value)
+                {
+                    subInfo.Value = value;
+                    lock (_dirtyMap)
+                        _dirtyMap[subInfo.TopicId] = subInfo;
+                }
+            }
+            else
+            {
+                _subByPath[path] = new SubInfo(path, value);
+            }
+        }
         public static string FormatPath(string origin, string vendor, string instrument, string field)
         {
             return string.Format("{0}/{1}/{2}/{3}",
                                  origin.ToUpperInvariant(),
-                                 vendor.ToUpperInvariant(),
-                                 instrument.ToUpperInvariant(),
-                                 field.ToUpperInvariant());
+                                 vendor?.ToUpperInvariant(),
+                                 instrument?.ToUpperInvariant(),
+                                 field?.ToUpperInvariant());
         }
         public static string FormatPath(string origin, string vendor, string instrument, string field, int num)
         {
             return string.Format("{0}/{1}/{2}/{3}/{4}",
                                  origin.ToUpperInvariant(),
-                                 vendor.ToUpperInvariant(),
-                                 instrument.ToUpperInvariant(),
-                                 field.ToUpperInvariant(),
+                                 vendor?.ToUpperInvariant(),
+                                 instrument?.ToUpperInvariant(),
+                                 field?.ToUpperInvariant(),
                                  num);  // can be depth or limit
         }
+
+        internal object GetValue(string origin, string vendor, string instrument, string field)
+        {
+            return _subByPath[FormatPath(origin, vendor, instrument, field)].Value;
+        }
+        public object GetValue(int topicId)
+        {
+            if (_subByTopicId.TryGetValue(topicId, out SubInfo sub))
+                return sub.Value;
+
+            return UninitializedValue;
+        }
+
         class SubInfo
         {
-            public int TopicId { get; private set; }
+            public int TopicId { get; set; }
             public string Path { get; private set; }
-
-            private object _value;
-
-            public object Value
-            {
-                get { return _value; }
-                set
-                {
-                    _value = value;
-                    IsDirty = true;
-                }
-            }
-
-            public bool IsDirty { get; set; }
+            public object Value { get; set; }
 
             public SubInfo (int topicId, string path)
             {
                 TopicId = topicId;
                 Path = path;
                 Value = UninitializedValue;
-                IsDirty = false;
+            }
+            public SubInfo(string path, object value)
+            {
+                TopicId = -1;  // this a PreSet or PreCache
+                Path = path;
+                Value = value;
             }
         }
     }
